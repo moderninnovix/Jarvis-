@@ -252,35 +252,37 @@ export default function App() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,_#111827_0%,_transparent_65%)] opacity-50 pointer-events-none"></div>
 
       {/* Upper Navigation Bar */}
-      <header id="app-header" className="relative z-10 border-b border-white/5 bg-black/20 backdrop-blur-md px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
+      <header id="app-header" className="relative z-10 border-b border-cyan-500/10 bg-black/45 backdrop-blur-md px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-gradient-to-tr from-cyan-600 to-blue-900 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-[0_0_15px_rgba(34,211,238,0.2)] border border-white/10">
-            J
+          {/* Advanced Neon Hexagon logo */}
+          <div className="relative w-10 h-10 flex items-center justify-center">
+            <div className="absolute inset-0 bg-cyan-400/15 rounded-xl border border-cyan-400 animate-pulse shadow-[0_0_15px_rgba(34,211,238,0.3)]"></div>
+            <Cpu className="w-5 h-5 text-cyan-400 relative z-10" />
           </div>
-          <div className="text-left">
-            <h1 className="font-semibold text-white text-sm tracking-tight">Jarvis Workspace</h1>
-            <p className="text-[10px] text-cyan-400 font-bold tracking-wider uppercase flex items-center gap-1.5">
+          <div className="text-left font-mono">
+            <h1 className="font-bold text-cyan-200 text-xs tracking-widest uppercase">JARVIS COGNITIVE OS</h1>
+            <p className="text-[9px] text-cyan-400 font-bold tracking-wider uppercase flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] animate-pulse" />
-              অনলাইন ইকোসিস্টেম
+              INTELLIGENT WORKSPACE GATEWAY
             </p>
           </div>
         </div>
 
         {/* Dynamic ticking Bengali clock from Design template */}
-        <div className="text-center sm:text-right">
-          <div className="text-base font-light text-white tracking-tight">{formattedTime}</div>
-          <div className="text-[10px] text-slate-500 uppercase tracking-widest">{formattedDate}</div>
+        <div className="text-center sm:text-right font-mono">
+          <div className="text-sm font-bold text-cyan-200 tracking-wider">{formattedTime}</div>
+          <div className="text-[9px] text-slate-500 uppercase tracking-widest">{formattedDate}</div>
         </div>
 
         {/* User profile, Live Voice button and Signout */}
-        <div className="flex items-center flex-wrap gap-4">
+        <div className="flex items-center flex-wrap gap-4 font-mono">
           {/* Live Voice mode button */}
           <button
             onClick={() => setVoiceModeOpen(true)}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-semibold text-xs px-4 py-2 rounded-xl transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)] hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] border border-red-500/30"
+            className="flex items-center gap-1.5 bg-cyan-950/40 hover:bg-cyan-900/50 text-cyan-300 font-bold text-[10px] px-4 py-2 rounded-xl transition-all shadow-[0_0_15px_rgba(34,211,238,0.15)] hover:shadow-[0_0_25px_rgba(34,211,238,0.3)] border border-cyan-400/30 cursor-pointer"
           >
-            <Mic className="w-3.5 h-3.5 animate-pulse" />
-            লাইভ ভয়েস চ্যাট
+            <Mic className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+            ENGAGE VOICE CORE
           </button>
 
           {/* Profile pill with glass theme */}

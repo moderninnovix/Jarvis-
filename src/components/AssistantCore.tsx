@@ -30,7 +30,7 @@ export default function AssistantCore({ onActivateVoice, userEmail }: AssistantC
   // Settings States
   const [assistantName, setAssistantName] = useState(() => localStorage.getItem('jarvis_custom_name') || 'Jarvis');
   const [language, setLanguage] = useState<'bn-BD' | 'en-US' | 'hi-IN'>(() => (localStorage.getItem('jarvis_language') as any) || 'bn-BD');
-  const [voiceGender, setVoiceGender] = useState<'male' | 'female'>(() => (localStorage.getItem('jarvis_gender') as any) || 'female');
+  const [voiceGender, setVoiceGender] = useState<'male' | 'female'>(() => (localStorage.getItem('jarvis_gender') as any) || 'male');
   const [alwaysOn, setAlwaysOn] = useState(() => localStorage.getItem('jarvis_always_on') === 'true');
   
   // Terminal / Upgrade States
@@ -286,10 +286,12 @@ export default function AssistantCore({ onActivateVoice, userEmail }: AssistantC
       <div className="flex-1 p-6 flex flex-col items-center justify-center gap-8 overflow-y-auto">
         
         {/* Core AI Orb Section */}
-        <div className="relative flex items-center justify-center py-4">
+        <div className="relative flex items-center justify-center py-6">
           
-          {/* Pulsating Orb Layers */}
-          <div className="absolute w-36 h-36 rounded-full bg-cyan-500/5 border border-cyan-500/10 animate-ping duration-10000"></div>
+          {/* Animated concentric tech dials around core */}
+          <div className="absolute w-52 h-52 border border-cyan-500/5 rounded-full pointer-events-none" />
+          <div className="absolute w-44 h-44 border border-cyan-500/10 rounded-full border-dashed pointer-events-none" />
+          <div className={`absolute w-36 h-36 border-2 border-cyan-500/10 rounded-full pointer-events-none border-dotted ${alwaysOn ? 'animate-[spin_20s_linear_infinite]' : ''}`} />
           
           <AnimatePresence>
             {alwaysOn && (
@@ -297,7 +299,7 @@ export default function AssistantCore({ onActivateVoice, userEmail }: AssistantC
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ 
-                    scale: wakeWordTriggered ? [1.1, 1.5, 1.1] : [1, 1.15, 1],
+                    scale: wakeWordTriggered ? [1.1, 1.4, 1.1] : [1, 1.15, 1],
                     opacity: wakeWordTriggered ? [0.6, 0.2, 0.6] : [0.3, 0.1, 0.3],
                     borderColor: wakeWordTriggered ? '#ef4444' : '#22d3ee'
                   }}
@@ -307,7 +309,7 @@ export default function AssistantCore({ onActivateVoice, userEmail }: AssistantC
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ 
-                    scale: wakeWordTriggered ? [1.2, 1.7, 1.2] : [1, 1.3, 1],
+                    scale: wakeWordTriggered ? [1.2, 1.6, 1.2] : [1, 1.25, 1],
                     opacity: wakeWordTriggered ? [0.4, 0, 0.4] : [0.15, 0, 0.15],
                     borderColor: wakeWordTriggered ? '#ef4444' : '#22d3ee'
                   }}
@@ -321,30 +323,38 @@ export default function AssistantCore({ onActivateVoice, userEmail }: AssistantC
           {/* Central Holographic Sphere Button */}
           <button
             onClick={() => onActivateVoice({ lang: language, voice: voiceGender })}
-            className={`relative w-24 h-24 rounded-full flex flex-col items-center justify-center transition-all duration-500 ${
+            className={`relative w-28 h-28 rounded-full flex flex-col items-center justify-center transition-all duration-500 ${
               wakeWordTriggered 
-                ? 'bg-red-600/35 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.5)]' 
+                ? 'bg-red-900/35 border-red-500 shadow-[0_0_35px_rgba(239,68,68,0.6)]' 
                 : alwaysOn 
-                  ? 'bg-cyan-950/40 border-cyan-500/40 shadow-[0_0_25px_rgba(34,211,238,0.25)] hover:bg-cyan-900/40' 
-                  : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+                  ? 'bg-cyan-950/45 border-cyan-400 shadow-[0_0_30px_rgba(34,211,238,0.35)] hover:bg-cyan-900/50' 
+                  : 'bg-black/80 border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)] hover:border-cyan-400 hover:shadow-[0_0_25px_rgba(34,211,238,0.25)]'
             } border cursor-pointer active:scale-95 group`}
           >
-            <div className="absolute inset-0.5 rounded-full bg-[radial-gradient(circle_at_50%_30%,_rgba(255,255,255,0.08)_0%,_transparent_75%)]" />
+            {/* Glossy radial lens overlay */}
+            <div className="absolute inset-1 rounded-full bg-[radial-gradient(circle_at_50%_25%,_rgba(255,255,255,0.12)_0%,_transparent_75%)]" />
             
-            {/* Core Soundwaves Vector Animated */}
-            {alwaysOn ? (
-              <div className="flex items-end justify-center gap-1.5 h-6 mb-1">
-                <span className="w-1 bg-cyan-400 rounded-full animate-bounce h-3" style={{ animationDelay: '0.1s', animationDuration: '0.6s' }}></span>
-                <span className="w-1 bg-cyan-400 rounded-full animate-bounce h-5" style={{ animationDelay: '0.3s', animationDuration: '0.8s' }}></span>
-                <span className="w-1 bg-cyan-400 rounded-full animate-bounce h-4" style={{ animationDelay: '0.5s', animationDuration: '0.7s' }}></span>
-                <span className="w-1 bg-cyan-400 rounded-full animate-bounce h-2" style={{ animationDelay: '0.2s', animationDuration: '0.5s' }}></span>
-              </div>
-            ) : (
-              <Mic className="w-8 h-8 text-slate-300 group-hover:text-white transition-colors mb-1" />
-            )}
+            {/* Pulsating Arc Reactor Neon SVG Core */}
+            <svg className={`w-16 h-16 mb-0.5 transition-transform duration-500 ${alwaysOn ? 'scale-110 animate-pulse' : 'scale-100 group-hover:scale-105'}`} viewBox="0 0 100 100">
+              <defs>
+                <filter id="core-glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+              <polygon 
+                points="50,22 24,68 76,68" 
+                fill="none" 
+                stroke={wakeWordTriggered ? '#ef4444' : alwaysOn ? '#22d3ee' : '#0891b2'} 
+                strokeWidth="4" 
+                filter="url(#core-glow)"
+              />
+              <circle cx="50" cy="53" r="8" fill="none" stroke="#22d3ee" strokeWidth="1.5" />
+              <circle cx="50" cy="53" r="3" fill="#ffffff" className={alwaysOn ? 'animate-ping' : ''} />
+            </svg>
             
-            <span className={`text-[9px] font-bold uppercase tracking-wider ${alwaysOn ? 'text-cyan-400' : 'text-slate-400 group-hover:text-slate-200'}`}>
-              {wakeWordTriggered ? 'জি স্যার!' : alwaysOn ? 'রিস্পন্সিভ' : 'ভয়েস চ্যাট'}
+            <span className={`text-[8px] font-bold uppercase tracking-widest ${alwaysOn ? 'text-cyan-400 animate-pulse' : 'text-slate-400 group-hover:text-cyan-300'}`}>
+              {wakeWordTriggered ? 'জি স্যার!' : alwaysOn ? 'ACTIVE COGNITIVE' : 'ENGAGE CORE'}
             </span>
           </button>
         </div>
