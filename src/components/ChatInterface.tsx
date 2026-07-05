@@ -95,6 +95,22 @@ export default function ChatInterface({ userEmail }: ChatInterfaceProps) {
       timestamp: new Date(),
     }
   ]);
+
+  // Update welcome message dynamically with user custom name/nickname
+  useEffect(() => {
+    const nick = localStorage.getItem('jarvis_user_nickname') || '';
+    if (nick) {
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === 'welcome-msg') {
+          return {
+            ...msg,
+            text: `নমস্কার **${nick} স্যার**! আমি **জারভিস**, আপনার ব্যক্তিগত এআই এক্সিকিউটিভ অ্যাসিস্ট্যান্ট। আজ আপনাকে কিভাবে সাহায্য করতে পারি? আপনার দৈনন্দিন কাজ, গুগল ক্যালেন্ডার শিডিউলিং, ইমেইল পরিচালনা বা যেকোনো তথ্যের জন্য আমাকে জিজ্ঞেস করতে পারেন।`
+          };
+        }
+        return msg;
+      }));
+    }
+  }, [userEmail]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [modelType, setModelType] = useState<'standard' | 'complex' | 'fast'>('standard');
@@ -295,7 +311,8 @@ export default function ChatInterface({ userEmail }: ChatInterfaceProps) {
           model: modelType,
           useSearch,
           useMaps,
-          latLng: location
+          latLng: location,
+          nickname: localStorage.getItem('jarvis_user_nickname') || ''
         })
       });
 

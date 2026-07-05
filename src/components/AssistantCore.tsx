@@ -24,14 +24,49 @@ import { motion, AnimatePresence } from 'motion/react';
 interface AssistantCoreProps {
   onActivateVoice: (options?: { lang?: string; voice?: string }) => void;
   userEmail: string;
+  userDisplayName?: string;
+  startCognitiveTask?: (prompt: string) => void;
+  voiceStatus?: 'idle' | 'listening' | 'speaking' | 'processing';
+  setVoiceStatus?: (status: 'idle' | 'listening' | 'speaking' | 'processing') => void;
+  currentSpeechTranscript?: string;
+  setCurrentSpeechTranscript?: (text: string) => void;
+  currentSpeechResponse?: string;
+  setCurrentSpeechResponse?: (text: string) => void;
 }
 
-export default function AssistantCore({ onActivateVoice, userEmail }: AssistantCoreProps) {
+export default function AssistantCore({ 
+  onActivateVoice, 
+  userEmail, 
+  userDisplayName,
+  startCognitiveTask,
+  voiceStatus = 'idle',
+  setVoiceStatus,
+  currentSpeechTranscript = '',
+  setCurrentSpeechTranscript,
+  currentSpeechResponse = '',
+  setCurrentSpeechResponse
+}: AssistantCoreProps) {
   // Settings States
   const [assistantName, setAssistantName] = useState(() => localStorage.getItem('jarvis_custom_name') || 'Jarvis');
   const [language, setLanguage] = useState<'bn-BD' | 'en-US' | 'hi-IN'>(() => (localStorage.getItem('jarvis_language') as any) || 'bn-BD');
   const [voiceGender, setVoiceGender] = useState<'male' | 'female'>(() => (localStorage.getItem('jarvis_gender') as any) || 'male');
   const [alwaysOn, setAlwaysOn] = useState(() => localStorage.getItem('jarvis_always_on') === 'true');
+  const [userNickname, setUserNickname] = useState(() => localStorage.getItem('jarvis_user_nickname') || '');
+  
+  // Update nickname when auth details load
+  useEffect(() => {
+    if (!localStorage.getItem('jarvis_user_nickname')) {
+      if (userDisplayName) {
+        setUserNickname(userDisplayName);
+        localStorage.setItem('jarvis_user_nickname', userDisplayName);
+      } else if (userEmail) {
+        const emailPrefix = userEmail.split('@')[0];
+        const defaultNick = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+        setUserNickname(defaultNick);
+        localStorage.setItem('jarvis_user_nickname', defaultNick);
+      }
+    }
+  }, [userDisplayName, userEmail]);
   
   // Terminal / Upgrade States
   const [evolutionInput, setEvolutionInput] = useState('');
@@ -45,15 +80,17 @@ export default function AssistantCore({ onActivateVoice, userEmail }: AssistantC
     const saved = localStorage.getItem('jarvis_evolved_directives');
     return saved ? JSON.parse(saved) : [
       'মডুলার আর্কিটেকচার অপ্টিমাইজেশন সক্রিয়',
-      'মাল্টিলিঙ্গুয়াল স্পিচ ইন্টারফেস সক্রিয়',
+      'মাল্টিলিঙ্গুয়াল... স্পিচ ইন্টারফেস সক্রিয়',
       'গুগল ওয়ার্কস্পেস লাইভ কানেকশন সিঙ্কড'
     ];
   });
 
   // Wake Word speech recognition reference
   const wakeWordRecRef = useRef<any>(null);
+  const directSpeechRecRef = useRef<any>(null);
   const [wakeWordListening, setWakeWordListening] = useState(false);
   const [wakeWordTriggered, setWakeWordTriggered] = useState(false);
+  const [isDirectVoiceActive, setIsDirectVoiceActive] = useState(false);
   const terminalBottomRef = useRef<HTMLDivElement>(null);
 
   // Sync settings with LocalStorage
@@ -69,15 +106,19 @@ export default function AssistantCore({ onActivateVoice, userEmail }: AssistantC
     localStorage.setItem('jarvis_gender', voiceGender);
   }, [voiceGender]);
 
+  // Handle Voice direct / wake word listener coordination
   useEffect(() => {
     localStorage.setItem('jarvis_always_on', String(alwaysOn));
-    if (alwaysOn) {
+    if (alwaysOn && !isDirectVoiceActive) {
       startWakeWordListener();
     } else {
       stopWakeWordListener();
     }
-    return () => stopWakeWordListener();
-  }, [alwaysOn, assistantName, language]);
+    return () => {
+      stopWakeWordListener();
+      stopDirectVoiceSession();
+    };
+  }, [alwaysOn, assistantName, language, isDirectVoiceActive]);
 
   // Scroll terminal logs
   useEffect(() => {
@@ -85,6 +126,91 @@ export default function AssistantCore({ onActivateVoice, userEmail }: AssistantC
       terminalBottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [terminalLogs]);
+
+  // Direct Voice Session (Listening directly on the dashboard)
+  const startDirectVoiceSession = () => {
+    stopWakeWordListener();
+    stopDirectVoiceSession();
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('ব্রাউজার ভয়েস রিকগনিশন সমর্থন করে না। অনুগ্রহ করে গুগল ক্রোম ব্যবহার করুন।');
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = language;
+
+      recognition.onstart = () => {
+        setIsDirectVoiceActive(true);
+        if (setVoiceStatus) setVoiceStatus('listening');
+        if (setCurrentSpeechTranscript) setCurrentSpeechTranscript('Listening sir...');
+        if (setCurrentSpeechResponse) setCurrentSpeechResponse('');
+        console.log('Direct voice session active.');
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0])
+          .map((result: any) => result.transcript)
+          .join('');
+        
+        if (setCurrentSpeechTranscript) setCurrentSpeechTranscript(transcript);
+      };
+
+      recognition.onerror = (err: any) => {
+        console.error('Direct voice recognition error:', err);
+        if (err.error !== 'no-speech') {
+          stopDirectVoiceSession();
+        }
+      };
+
+      recognition.onend = () => {
+        setIsDirectVoiceActive(false);
+        if (setVoiceStatus) setVoiceStatus('idle');
+        
+        const transcriptText = localStorage.getItem('last_direct_transcript') || '';
+        // Wait briefly to allow state to settle
+        setTimeout(() => {
+          const finalTranscript = currentSpeechTranscript || '';
+          if (finalTranscript.trim() && finalTranscript !== 'Listening sir...') {
+            if (startCognitiveTask) {
+              startCognitiveTask(finalTranscript);
+            }
+          }
+        }, 100);
+      };
+
+      directSpeechRecRef.current = recognition;
+      recognition.start();
+
+    } catch (err) {
+      console.error('Failed to start direct voice:', err);
+    }
+  };
+
+  const stopDirectVoiceSession = () => {
+    if (directSpeechRecRef.current) {
+      try {
+        directSpeechRecRef.current.onend = null;
+        directSpeechRecRef.current.stop();
+      } catch (e) {}
+      directSpeechRecRef.current = null;
+    }
+    setIsDirectVoiceActive(false);
+    if (setVoiceStatus) setVoiceStatus('idle');
+  };
+
+  const toggleDirectVoice = () => {
+    if (isDirectVoiceActive) {
+      stopDirectVoiceSession();
+    } else {
+      startDirectVoiceSession();
+    }
+  };
 
   // Wake Word listener implementation using Web Speech API
   const startWakeWordListener = () => {
@@ -121,11 +247,10 @@ export default function AssistantCore({ onActivateVoice, userEmail }: AssistantC
           // Stop current listener temporarily to launch voice mode
           stopWakeWordListener();
           
-          // Wait 1.5 seconds for speech ack to finish, then pop open Live Voice mode
+          // Wait 1.5 seconds for speech ack to finish, then activate direct dashboard voice listening!
           setTimeout(() => {
             setWakeWordTriggered(false);
-            onActivateVoice({ lang: language, voice: voiceGender });
-            // re-enable always-on after modal is active (it will be re-bound when modal closes)
+            startDirectVoiceSession();
           }, 1600);
         }
       };
@@ -140,9 +265,9 @@ export default function AssistantCore({ onActivateVoice, userEmail }: AssistantC
       recognizer.onend = () => {
         setWakeWordListening(false);
         // Keep it alive if always on is true
-        if (alwaysOn) {
+        if (alwaysOn && !isDirectVoiceActive) {
           setTimeout(() => {
-            if (alwaysOn && !wakeWordRecRef.current) {
+            if (alwaysOn && !isDirectVoiceActive && !wakeWordRecRef.current) {
               startWakeWordListener();
             }
           }, 1000);
@@ -172,11 +297,13 @@ export default function AssistantCore({ onActivateVoice, userEmail }: AssistantC
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
     
-    let text = 'জি স্যার, বলুন আমি শুনছি!';
+    const name = userNickname || 'স্যার';
+    
+    let text = `জি ${name} স্যার, বলুন আমি শুনছি!`;
     if (language === 'en-US') {
-      text = `Yes, Sir? I am listening. How can I help you?`;
+      text = `Yes, ${name} Sir? I am listening. How can I help you?`;
     } else if (language === 'hi-IN') {
-      text = `जी सर, मैं सुन रहा हूँ। कहिए मैं क्या मदद कर सकता हूँ?`;
+      text = `जी ${name} सर, मैं सुन रहा हूँ। कहिए मैं क्या मदद कर सकता हूँ?`;
     }
 
     const utterance = new SpeechSynthesisUtterance(text);
@@ -413,6 +540,34 @@ export default function AssistantCore({ onActivateVoice, userEmail }: AssistantC
               />
               <div className="p-1.5 bg-cyan-500/10 rounded-lg text-[9px] font-bold text-cyan-400 border border-cyan-500/20">
                 ACTIVE
+              </div>
+            </div>
+          </div>
+
+          {/* User Nickname Configurator Card */}
+          <div className="p-3.5 bg-black/25 border border-white/5 rounded-2xl flex flex-col justify-between gap-2 hover:border-white/10 transition-colors">
+            <div>
+              <h4 className="text-[11px] font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                <UserCheck className="w-3.5 h-3.5 text-cyan-400" />
+                আপনার নাম / ডাকনাম
+              </h4>
+              <p className="text-[10px] text-slate-400 mt-1">
+                অ্যাসিস্ট্যান্ট আপনাকে এই নামে সম্বোধন করবে।
+              </p>
+            </div>
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                type="text"
+                value={userNickname}
+                onChange={(e) => {
+                  setUserNickname(e.target.value);
+                  localStorage.setItem('jarvis_user_nickname', e.target.value);
+                }}
+                placeholder="যেমন: জয় দত্ত"
+                className="flex-1 bg-black/40 border border-white/10 hover:border-white/15 focus:border-cyan-500 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-600 outline-none transition-colors"
+              />
+              <div className="p-1.5 bg-cyan-500/10 rounded-lg text-[9px] font-bold text-cyan-400 border border-cyan-500/20">
+                SAVED
               </div>
             </div>
           </div>

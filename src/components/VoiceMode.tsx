@@ -2,46 +2,57 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, PhoneOff, Volume2, HelpCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const generateDynamicSandboxResponse = (text: string, lang: string, name: string): string => {
+const generateDynamicSandboxResponse = (text: string, lang: string, name: string, userNickname: string, hasGreeted: boolean): string => {
   const inputLower = text.toLowerCase();
+  const nickname = userNickname || 'স্যার';
+  
+  // Choose prefix based on whether we have already greeted the user
+  let prefix = '';
+  if (lang === 'en-US') {
+    prefix = !hasGreeted ? `Hello ${nickname} Sir, respect. ` : `Yes ${nickname} Sir. `;
+  } else if (lang === 'hi-IN') {
+    prefix = !hasGreeted ? `नमस्ते ${nickname} सर। ` : `जी ${nickname} सर। `;
+  } else {
+    prefix = !hasGreeted ? `হ্যালো ${nickname} স্যার, নমস্কার। ` : `জি ${nickname} স্যার, `;
+  }
   
   if (lang === 'en-US') {
     if (inputLower.includes('email') || inputLower.includes('mail') || inputLower.includes('write') || inputLower.includes('draft')) {
-      return `Hello Joy Datta Sir, respect. I have successfully drafted the email in English for you, Sir. Here is the draft: "Dear Partner, I hope this email finds you well. I would like to schedule a session next week to sync on our business strategy." Would you like me to send it?`;
+      return `${prefix}I have successfully drafted the email in English for you, Sir. Here is the draft: "Dear Partner, I hope this email finds you well. I would like to schedule a session next week to sync on our business strategy." Would you like me to send it?`;
     }
     if (inputLower.includes('market') || inputLower.includes('competitor') || inputLower.includes('analysis')) {
-      return `Hello Joy Datta Sir, respect. I am analyzing the market, Sir. Competitors are aggressively expanding AI capability. We should optimize our digital acquisition funnel.`;
+      return `${prefix}I am analyzing the market, Sir. Competitors are aggressively expanding AI capability. We should optimize our digital acquisition funnel.`;
     }
     if (inputLower.includes('code') || inputLower.includes('api') || inputLower.includes('developer') || inputLower.includes('server')) {
-      return `Hello Joy Datta Sir, respect. The server status is fully operational. I have refactored the optimization scripts, and our workspace connection is 100% active.`;
+      return `${prefix}The server status is fully operational. I have refactored the optimization scripts, and our workspace connection is 100% active.`;
     }
-    return `Hello Joy Datta Sir, respect. Yes Sir, I can hear you clearly. I am currently running in Local Sandbox Mode, but I am ready to assist you. How can I help?`;
+    return `${prefix}I can hear you clearly. I am currently running in Local Sandbox Mode, but I am ready to assist you. How can I help?`;
   }
 
   if (lang === 'hi-IN') {
     if (inputLower.includes('email') || inputLower.includes('mail') || inputLower.includes('likh')) {
-      return `नमस्ते जय दत्त सर। जी सर, मैंने आपके लिए अंग्रेजी में एक पेशेवर ईमेल का मसौदा तैयार किया है। क्या मैं इसे भेज दूँ?`;
+      return `${prefix}मैंने आपके लिए अंग्रेजी में एक पेशेवर ईमेल का मसौदा तैयार किया है। क्या मैं इसे भेज दूँ?`;
     }
     if (inputLower.includes('market') || inputLower.includes('budget') || inputLower.includes('paisa')) {
-      return `नमस्ते जय दत्त सर। सर, हमारा बजट बिल्कुल नियंत्रण में है। होस्टिंग और विकास के लिए पर्याप्त वित्तीय संसाधन आवंटित हैं।`;
+      return `${prefix}हमारा budget बिल्कुल नियंत्रण में है। होस्टिंग और विकास के लिए पर्याप्त वित्तीय संसाधन आवंटित हैं।`;
     }
-    return `नमस्ते जय दत्त सर। जी सर, मैं ऑफलाइन सैंडबॉक्स मोड में आपकी आवाज़ पूरी तरह सुन पा रहा हूँ। आप मुझसे अपने काम या व्यवसाय के बारे में कोई भी सवाल पूछ सकते हैं।`;
+    return `${prefix}मैं ऑफलाइन सैंडबॉक्स मोड में आपकी आवाज़ पूरी तरह सुन पा रहा हूँ। आप मुझसे अपने काम या व्यवसाय के बारे में कोई भी सवाल पूछ सकते हैं।`;
   }
 
   // Default to Bengali
   if (inputLower.includes('বাজার') || inputLower.includes('market') || inputLower.includes('analysis') || inputLower.includes('বিশ্লেষণ') || inputLower.includes('প্রতিযোগী') || inputLower.includes('competitor')) {
-    return 'হ্যালো জয় দত্ত স্যার, নমস্কার। আমি বাজার বিশ্লেষণ করছি। আমাদের সেকশনে মূল প্রতিযোগী ওপেন ডেভ এবং ডেভ কর্পোরেশন। এআই ইন্টিগ্রেশন দ্রুত গতিতে বৃদ্ধি পাচ্ছে এবং আমাদের কাস্টমার একুইজিশনে মনোযোগ দেওয়া জরুরি।';
+    return `${prefix}আমি বাজার বিশ্লেষণ করছি। আমাদের সেকশনে মূল প্রতিযোগী ওপেন ডেভ এবং ডেভ কর্পোরেশন। এআই ইন্টিগ্রেশন দ্রুত গতিতে বৃদ্ধি পাচ্ছে এবং আমাদের কাস্টমার একুইজিশনে মনোযোগ দেওয়া জরুরি।`;
   }
   if (inputLower.includes('বাজেট') || inputLower.includes('finance') || inputLower.includes('অর্থ') || inputLower.includes('টাকা') || inputLower.includes('হিসাব')) {
-    return 'হ্যালো জয় দত্ত স্যার, নমস্কার। বর্তমান বাজেট অনুযায়ী আমাদের হোস্টিংয়ের জন্য পঁচিশ পারসেন্ট এবং মার্কেটিংয়ের জন্য পঁয়ত্রিশ পারসেন্ট বরাদ্দ রয়েছে। কাস্টমার একুইজিশনের খরচ নিয়ন্ত্রণ করা এই মুহূর্তে আমাদের মূল লক্ষ্য।';
+    return `${prefix}বর্তমান বাজেট অনুযায়ী আমাদের হোস্টিংয়ের জন্য পঁচিশ পারসেন্ট এবং মার্কেটিংয়ের জন্য পঁয়ত্রিশ পারসেন্ট বরাদ্দ রয়েছে। কাস্টমার একুইজিশনের খরচ নিয়ন্ত্রণ করা এই মুহূর্তে আমাদের মূল লক্ষ্য।`;
   }
   if (inputLower.includes('কোড') || inputLower.includes('code') || inputLower.includes('program') || inputLower.includes('api') || inputLower.includes('ডেভেলপার')) {
-    return 'হ্যালো জয় দত্ত স্যার, নমস্কার। আমি লোকাল ডেমো মোডে একটি অত্যন্ত নিরাপদ এবং মডুলার অপ্টিমাইজার কোড স্ট্রাকচার রেডি করেছি। আপনার সার্ভার কানেকশন এখন সম্পূর্ণ স্বাভাবিক রয়েছে।';
+    return `${prefix}আমি লোকাল ডেমো মোডে একটি অত্যন্ত নিরাপদ এবং মডুলার অপ্টিমাইজার কোড স্ট্রাকচার রেডি করেছি। আপনার সার্ভার কানেকশন এখন সম্পূর্ণ স্বাভাবিক রয়েছে।`;
   }
   if (inputLower.includes('gmail') || inputLower.includes('mail') || inputLower.includes('ইমেইল') || inputLower.includes('ইনবক্স')) {
-    return 'হ্যালো জয় দত্ত স্যার, নমস্কার। আপনার ইনবক্সে মডার্ন ইনোভিক্স থেকে একটি গুরুত্বপূর্ণ ক্লায়েন্ট মিটিংয়ের ইমেইল এসেছে। আমি এটি সুন্দর করে সামারি করে রেখেছি।';
+    return `${prefix}আপনার ইনবক্সে মডার্ন ইনোভিক্স থেকে একটি গুরুত্বপূর্ণ ক্লায়েন্ট মিটিংয়ের ইমেইল এসেছে। আমি এটি সুন্দর করে সামারি করে রেখেছি।`;
   }
-  return `হ্যালো জয় দত্ত স্যার, নমস্কার। জি স্যার, আমি লোকাল স্যান্ডবক্স মোডে আপনার কথা শুনতে পাচ্ছি। এপিআই কোটা সীমা অতিক্রমের কারণে আমি অফলাইনে আছি, তবে আপনি যেকোনো বিষয়ে আমাকে জিজ্ঞেস করতে পারেন।`;
+  return `${prefix}জি স্যার, আমি লোকাল স্যান্ডবক্স মোডে আপনার কথা শুনতে পাচ্ছি। এপিআই কোটা সীমা অতিক্রমের কারণে আমি অফলাইনে আছি, তবে আপনি যেকোনো বিষয়ে আমাকে জিজ্ঞেস করতে পারেন।`;
 };
 
 interface VoiceModeProps {
@@ -57,6 +68,7 @@ export default function VoiceMode({ onClose, language = 'bn-BD', voiceGender = '
   const [error, setError] = useState<string | null>(null);
   const [jarvisIsSpeaking, setJarvisIsSpeaking] = useState(false);
   const [transcription, setTranscription] = useState('');
+  const [hasGreeted, setHasGreeted] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const inputAudioCtxRef = useRef<AudioContext | null>(null);
@@ -174,8 +186,11 @@ export default function VoiceMode({ onClose, language = 'bn-BD', voiceGender = '
         const resultText = event.results[0][0].transcript;
         setTranscription(resultText);
         
+        const storedNickname = localStorage.getItem('jarvis_user_nickname') || 'স্যার';
+        
         // Generate and speak response
-        const reply = generateDynamicSandboxResponse(resultText, language, assistantName);
+        const reply = generateDynamicSandboxResponse(resultText, language, assistantName, storedNickname, hasGreeted);
+        setHasGreeted(true);
         speakLocalResponse(reply);
       };
 
@@ -283,7 +298,8 @@ export default function VoiceMode({ onClose, language = 'bn-BD', voiceGender = '
 
       // 3. Setup WebSocket connection
       const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${wsProtocol}//${window.location.host}/live?voice=${voiceGender}&lang=${language}&name=${encodeURIComponent(assistantName)}`;
+      const userNickname = localStorage.getItem('jarvis_user_nickname') || 'স্যার';
+      const wsUrl = `${wsProtocol}//${window.location.host}/live?voice=${voiceGender}&lang=${language}&name=${encodeURIComponent(assistantName)}&nickname=${encodeURIComponent(userNickname)}`;
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 

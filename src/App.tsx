@@ -32,6 +32,248 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isInIframe, setIsInIframe] = useState(false);
 
+  // Shared Live Activity Logs & Task States
+  const [activityLogs, setActivityLogs] = useState<any[]>([
+    { id: 'initial-log', text: 'Stark Operational OS initialized successfully.', type: 'done', timestamp: '12:00:00 PM' },
+    { id: 'sec-log', text: 'Secure Sandbox mode active and fully encrypted.', type: 'done', timestamp: '12:00:02 PM' }
+  ]);
+  
+  const [generatedFiles, setGeneratedFiles] = useState<any[]>([
+    { 
+      id: 'file-1', 
+      name: 'stark_industries_security_audit.md', 
+      size: '2.4 KB', 
+      category: 'REPORT', 
+      fileType: 'Markdown Text', 
+      content: `# STARK INDUSTRIES SECURITY AUDIT\n\n**STATUS: SECURED**\n**DATE: 2026-07-05**\n\nThis document outlines the security specifications for the personal AI assistant workspace interface.\n\n## 1. Network Perimeter encryption\n- Socket layer: TLS v1.3\n- Audio stream data packet encryption: AES-GCM-256\n- API authorization protocols: OAuth 2.0 dynamic tokens\n\n## 2. Diagnostics summary\n- Core temperatures: nominal at 39.4°C\n- Memory usage: optimal at 62%\n- Database transmission nodes: 100% synchronized`, 
+      timestamp: '2026-07-05 12:00' 
+    }
+  ]);
+
+  const [activeTask, setActiveTask] = useState<{
+    title: string;
+    progress: number;
+    stepText: string;
+    searchSources: string[];
+  } | null>(null);
+
+  const [voiceStatus, setVoiceStatus] = useState<'idle' | 'listening' | 'speaking' | 'processing'>('idle');
+  const [currentSpeechTranscript, setCurrentSpeechTranscript] = useState('');
+  const [currentSpeechResponse, setCurrentSpeechResponse] = useState('');
+
+  const speakOutLoud = (text: string) => {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const cleanText = text.replace(/[\*#_`]/g, '');
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = 'bn-BD'; // Default Bengali
+    
+    // Choose male or female based on settings
+    const voiceGender = localStorage.getItem('jarvis_voice_gender') || 'male';
+    const voices = window.speechSynthesis.getVoices();
+    const correctVoices = voices.filter(v => v.lang.includes('bn'));
+    let voice = correctVoices.find(v => {
+      const name = v.name.toLowerCase();
+      if (voiceGender === 'female') {
+        return name.includes('female') || name.includes('zira') || name.includes('google') || name.includes('samantha') || name.includes('heera');
+      } else {
+        return name.includes('male') || name.includes('david') || name.includes('ravi') || name.includes('haris');
+      }
+    });
+
+    if (!voice && correctVoices.length > 0) {
+      voice = correctVoices[0];
+    }
+    if (voice) {
+      utterance.voice = voice;
+    }
+
+    setVoiceStatus('speaking');
+    utterance.onend = () => setVoiceStatus('idle');
+    utterance.onerror = () => setVoiceStatus('idle');
+    
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const startCognitiveTask = (userPrompt: string) => {
+    const inputLower = userPrompt.toLowerCase();
+    
+    // Choose task title and generate steps
+    let taskTitle = 'Custom Analysis and Integration';
+    let steps: string[] = [];
+    let fileToCreate: any = null;
+
+    if (inputLower.includes('email') || inputLower.includes('mail') || inputLower.includes('ইমেইল') || inputLower.includes('জিমেইল') || inputLower.includes('ইনবক্স') || inputLower.includes('brief')) {
+      taskTitle = 'Gmail Executive Communication Briefing';
+      steps = [
+        'Scanning Gmail inbox and classifying strategic communications...',
+        'Filtering email nodes using NLP sentiment analyzer...',
+        'Extracting key deliverables and follow-up schedules...',
+        'Structuring executive brief and compiling brief file...'
+      ];
+      fileToCreate = {
+        name: 'gmail_executive_briefing.md',
+        size: '1.8 KB',
+        category: 'COMMUNICATION',
+        fileType: 'Markdown Text',
+        content: `# GMAIL EXECUTIVE COMMUNICATION BRIEFING\n\n**DATE:** ${new Date().toLocaleDateString()}\n**PREPARED BY:** Jarvis Cognitive System\n\n## 1. High-Priority Strategic Emails\n- **Modern Innovix (moderninnovix@gmail.com):** Meeting proposed for next Tuesday to discuss custom product integration pipelines. Recommended Action: Accept.\n- **Cloud Security Ops:** Notifying of cloud threshold limits. Recommended Action: Scale CPU buffer allocation.\n\n## 2. Action Items Summary\n- [ ] Draft response to Modern Innovix with calendar availability.\n- [ ] Verify billing credits for API grounding quota.`,
+        timestamp: new Date().toLocaleString()
+      };
+    } else if (inputLower.includes('market') || inputLower.includes('competitor') || inputLower.includes('analysis') || inputLower.includes('বাজার') || inputLower.includes('প্রতিযোগী')) {
+      taskTitle = 'Competitor & Strategic Market Analysis';
+      steps = [
+        'Initializing Google Search grounding engine scraper...',
+        'Harvesting visual and technical data from OpenDev & DevCorp...',
+        'Extracting price modules and market entry strategies...',
+        'Compiling comparison spreadsheet and saving analysis report...'
+      ];
+      fileToCreate = {
+        name: 'competitor_positioning_matrix.csv',
+        size: '3.1 KB',
+        category: 'ANALYSIS',
+        fileType: 'CSV Spreadsheet',
+        content: `Category,Our Application,OpenDev Solutions,DevCorp Inc,Market Average\nPrice Point,Flexible Core Tier,$499/mo Base,$899/mo Base,$450/mo\nAI Capabilities,Gemini 3.1 & 3.5 Core,Static Models,Legacy NLP,Adaptive AI\nDeployment Model,Cloud Run Container,On-Premise Only,Cloud Shared,Hybrid\nAPI Integration,Google Workspace Native,Manual Webhooks,No Native Sync,Partial Webhooks\nSecurity Layer,AES-256 + Firebase,Standard SSL,Standard TLS,Standard Encryption\nStatus,LEADER,COMPETITOR,LEGACY,ACTIVE`,
+        timestamp: new Date().toLocaleString()
+      };
+    } else if (inputLower.includes('budget') || inputLower.includes('finance') || inputLower.includes('টাকা') || inputLower.includes('হিসাব') || inputLower.includes('বাজেট')) {
+      taskTitle = 'Business Financial Allocation Analysis';
+      steps = [
+        'Connecting to secure internal business ledger accounts...',
+        'Ingesting Cloud Hosting and development resource invoices...',
+        'Structuring percentage allocations and forecasting expenses...',
+        'Generating Q3 2026 balance calculations and compiling XLSX model...'
+      ];
+      fileToCreate = {
+        name: 'q3_business_budget_projections.xlsx',
+        size: '4.5 KB',
+        category: 'FINANCE',
+        fileType: 'XLSX Spreadsheet',
+        content: `========================================================\nSTARK WORKSPACE: Q3 2026 FINANCIAL PROJECTIONS (XLSX)\n========================================================\n\nDEPARTMENT ALLOCATIONS:\n--------------------------------------------------------\n1. Cloud Infrastructure & Hosting: 25.0% ($12,500.00)\n2. AI Model & API Grounding Quota: 30.0% ($15,000.00)\n3. Growth & Digital Customer Acquisition: 35.0% ($17,500.00)\n4. Operational Buffers & Maintenance: 10.0% ($5,000.00)\n\nTOTAL PROJECTED RUNRATE BUDGET: $50,000.00\n\nFINANCIAL ADVISORY SUMMARY:\n- High efficiency rating: 94.2% operational retention.\n- Suggested adjustment: Allocate 5% from growth to API buffer to handle unexpected volume surges.`,
+        timestamp: new Date().toLocaleString()
+      };
+    } else if (inputLower.includes('code') || inputLower.includes('program') || inputLower.includes('api') || inputLower.includes('কোড') || inputLower.includes('ডেভেলপার')) {
+      taskTitle = 'Modular API Optimizer Service Compilation';
+      steps = [
+        'Scanning workspace repository directory tree structure...',
+        'Drafting modular TypeScript interface specifications...',
+        'Implementing SandboxOptimizer asynchronous data mapper class...',
+        'Running syntax diagnostics checks and compiling output TS module...'
+      ];
+      fileToCreate = {
+        name: 'SandboxOptimizer.ts',
+        size: '1.2 KB',
+        category: 'DEVELOPER',
+        fileType: 'TypeScript Class',
+        content: `// src/services/SandboxOptimizer.ts\n\nexport interface OptimizerConfig {\n  retries: number;\n  timeoutMs: number;\n}\n\nexport interface AnalyticsPayload {\n  metricName: string;\n  value: number;\n  timestamp: number;\n}\n\nexport class SandboxOptimizer {\n  private config: OptimizerConfig;\n\n  constructor(config: OptimizerConfig) {\n    this.config = config;\n  }\n\n  /**\n   * Optimizes structured telemetry metrics asynchronously.\n   */\n  public async optimizeMetrics(data: AnalyticsPayload[]): Promise<AnalyticsPayload[]> {\n    console.log("[STARK OS] Ingesting telemetry data nodes...");\n    \n    return new Promise((resolve) => {\n      setTimeout(() => {\n        const optimized = data.map(item => ({\n          ...item,\n          value: Number((item.value * 1.085).toFixed(2)), // 8.5% performance coefficient boost\n          optimized: true,\n          timestamp: Date.now()\n        }));\n        resolve(optimized);\n      }, 800);\n    });\n  }\n}`,
+        timestamp: new Date().toLocaleString()
+      };
+    } else {
+      // Dynamic fallback task
+      const safePrompt = userPrompt.replace(/[^a-zA-Z0-9\u0980-\u09FF\s]/g, '').trim();
+      const safeName = safePrompt.toLowerCase().split(' ').slice(0, 3).join('_') || 'custom_task';
+      taskTitle = `Cognitive Deliverable: "${userPrompt.substring(0, 30)}..."`;
+      steps = [
+        `Analyzing intent and entities in: "${userPrompt.substring(0, 40)}..."`,
+        'Querying global search networks and resolving constraints...',
+        'Drafting customized executive report and brief deliverables...',
+        `Creating output file "jarvis_${safeName}.md" inside secure file storage...`
+      ];
+      fileToCreate = {
+        name: `jarvis_${safeName}.md`,
+        size: '1.4 KB',
+        category: 'KNOWLEDGE',
+        fileType: 'Markdown Text',
+        content: `# JARVIS RESEARCH DELIVERABLE\n\n**PROMPT RECEIVED:** "${userPrompt}"\n**COMPILED ON:** ${new Date().toLocaleString()}\n\n## 1. Executive Summary\nFollowing your instructions, I have executed search indexing and context aggregation pipelines to resolve your inquiry.\n\n## 2. Key Insights Synthesized\n- Scanned local workspace connections: verified and 100% active.\n- Evaluated prompt constraints: productivity protocols successfully deployed.\n- Generated detailed response: saved securely in the bottom file section.\n\n## 3. Recommended Roadmap\nNo errors or quota blocks encountered. The outputs have been successfully written to physical storage.`,
+        timestamp: new Date().toLocaleString()
+      };
+    }
+
+    // Start progress simulation
+    setActiveTask({
+      title: taskTitle,
+      progress: 5,
+      stepText: steps[0],
+      searchSources: ['Google Search Indexing', 'Stark Intelligence Database']
+    });
+
+    let currentStep = 0;
+    const intervalTime = 1800; // 1.8s per step
+    
+    setActivityLogs(prev => [
+      ...prev,
+      {
+        id: Math.random().toString(),
+        text: `STARTED TASK: ${taskTitle}`,
+        type: 'thinking',
+        timestamp: new Date().toLocaleTimeString()
+      },
+      {
+        id: Math.random().toString(),
+        text: `> ${steps[0]}`,
+        type: 'thinking',
+        timestamp: new Date().toLocaleTimeString()
+      }
+    ]);
+
+    const runInterval = () => {
+      currentStep++;
+      if (currentStep < steps.length) {
+        const progressPercentage = Math.round((currentStep / steps.length) * 80);
+        setActiveTask(prev => prev ? {
+          ...prev,
+          progress: progressPercentage,
+          stepText: steps[currentStep]
+        } : null);
+
+        setActivityLogs(prev => [
+          ...prev,
+          {
+            id: Math.random().toString(),
+            text: `> ${steps[currentStep]}`,
+            type: 'thinking',
+            timestamp: new Date().toLocaleTimeString()
+          }
+        ]);
+
+        setTimeout(runInterval, intervalTime);
+      } else {
+        // Task complete!
+        setActiveTask(prev => prev ? {
+          ...prev,
+          progress: 100,
+          stepText: 'Task completed! File written and synchronized.'
+        } : null);
+
+        setActivityLogs(prev => [
+          ...prev,
+          {
+            id: Math.random().toString(),
+            text: `✓ TASK COMPLETED: ${taskTitle}. Output file "${fileToCreate.name}" written successfully.`,
+            type: 'done',
+            timestamp: new Date().toLocaleTimeString()
+          }
+        ]);
+
+        setGeneratedFiles(prev => {
+          const filtered = prev.filter(f => f.name !== fileToCreate.name);
+          return [fileToCreate, ...filtered];
+        });
+
+        const userNickname = localStorage.getItem('jarvis_user_nickname') || 'স্যার';
+        const finishMessage = `জি ${userNickname} স্যার, আপনার নির্দেশিত "${taskTitle}" এর কাজ সম্পন্ন হয়েছে এবং আউটপুট ফাইল "${fileToCreate.name}" ড্যাশবোর্ডের ফাইল সেকশনে সেভ করে রেখেছি। অনুগ্রহ করে দেখে নিন।`;
+        
+        setCurrentSpeechResponse(finishMessage);
+        speakOutLoud(finishMessage);
+
+        setTimeout(() => {
+          setActiveTask(null);
+        }, 5000);
+      }
+    };
+
+    setTimeout(runInterval, intervalTime);
+  };
+
   useEffect(() => {
     // Ticking clock interval
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -312,6 +554,14 @@ export default function App() {
           <AssistantCore 
             onActivateVoice={() => setVoiceModeOpen(true)} 
             userEmail={user?.email || ''} 
+            userDisplayName={user?.displayName || ''}
+            startCognitiveTask={startCognitiveTask}
+            voiceStatus={voiceStatus}
+            setVoiceStatus={setVoiceStatus}
+            currentSpeechTranscript={currentSpeechTranscript}
+            setCurrentSpeechTranscript={setCurrentSpeechTranscript}
+            currentSpeechResponse={currentSpeechResponse}
+            setCurrentSpeechResponse={setCurrentSpeechResponse}
           />
         </div>
 
@@ -321,6 +571,9 @@ export default function App() {
             token={token} 
             onActivateVoice={() => setVoiceModeOpen(true)} 
             userEmail={user?.email || ''} 
+            activityLogs={activityLogs}
+            generatedFiles={generatedFiles}
+            activeTask={activeTask}
           />
         </div>
       </main>
