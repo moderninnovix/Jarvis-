@@ -1,0 +1,6 @@
+{
+  "name": "Jarvis",
+  "description": "An advanced, personalized AI Executive Assistant integrated with Google Workspace, providing automated scheduling, email management, real-time voice, search/maps grounding, and text-to-speech.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
