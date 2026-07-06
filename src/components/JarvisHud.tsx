@@ -35,9 +35,24 @@ interface JarvisHudProps {
   token: string | null;
   onActivateVoice: () => void;
   userEmail: string;
+  activityLogs?: any[];
+  generatedFiles?: any[];
+  activeTask?: {
+    title: string;
+    progress: number;
+    stepText: string;
+    searchSources: string[];
+  } | null;
 }
 
-export default function JarvisHud({ token, onActivateVoice, userEmail }: JarvisHudProps) {
+export default function JarvisHud({ 
+  token, 
+  onActivateVoice, 
+  userEmail,
+  activityLogs = [],
+  generatedFiles = [],
+  activeTask = null
+}: JarvisHudProps) {
   // Live simulated system stats
   const [cpu1, setCpu1] = useState(45);
   const [cpu2, setCpu2] = useState(38);
@@ -46,6 +61,9 @@ export default function JarvisHud({ token, onActivateVoice, userEmail }: JarvisH
   const [powerOutput, setPowerOutput] = useState(3.14);
   const [netUp, setNetUp] = useState(184);
   const [netDown, setNetDown] = useState(3.12);
+  
+  // Selected compiled file to display in holographic modal
+  const [selectedFile, setSelectedFile] = useState<any | null>(null);
   
   // Real or simulated Google Workspace data
   const [emails, setEmails] = useState<WorkspaceEmail[]>([]);
@@ -143,7 +161,10 @@ export default function JarvisHud({ token, onActivateVoice, userEmail }: JarvisH
 
   const displayEmails = token && emails.length > 0 ? emails : simulatedEmails;
   const displayEvents = token && events.length > 0 ? events : simulatedEvents;
-  const displayFiles = token && files.length > 0 ? files : simulatedFiles;
+  const displayFiles = [
+    ...generatedFiles,
+    ...(token && files.length > 0 ? files : simulatedFiles)
+  ];
 
   return (
     <div className="w-full flex flex-col bg-[#020204]/95 border border-cyan-500/20 rounded-2xl overflow-hidden backdrop-blur-2xl relative shadow-[0_0_35px_rgba(6,182,212,0.15)] font-mono text-cyan-400">
@@ -271,6 +292,31 @@ export default function JarvisHud({ token, onActivateVoice, userEmail }: JarvisH
             </div>
           </div>
 
+          {/* Active Cognitive Task Tracker */}
+          {activeTask && (
+            <div className="p-4 bg-cyan-950/20 border-2 border-amber-500/40 rounded-xl flex flex-col gap-3 relative overflow-hidden animate-pulse">
+              <div className="flex items-center justify-between border-b border-cyan-500/15 pb-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 text-amber-400">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin-slow" />
+                  JARVIS COGNITIVE ENGINE
+                </span>
+                <span className="text-[9px] text-amber-400 font-bold">{activeTask.progress}% COMPLETE</span>
+              </div>
+              <div className="text-[11px] font-bold text-slate-200">{activeTask.title}</div>
+              <div className="text-[9px] text-cyan-300 font-mono">{activeTask.stepText}</div>
+              <div className="w-full bg-cyan-950/50 h-2 rounded-full overflow-hidden border border-cyan-500/25">
+                <div 
+                  className="bg-cyan-400 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${activeTask.progress}%` }}
+                />
+              </div>
+              <div className="text-[8px] text-slate-500 flex justify-between">
+                <span>SOURCES: {activeTask.searchSources.join(', ')}</span>
+                <span className="text-amber-400 animate-ping">● ACTIVE</span>
+              </div>
+            </div>
+          )}
+
           {/* Secure Database Chunk Files (Google Drive) */}
           <div className="p-4 bg-black/40 border border-cyan-500/10 rounded-xl flex flex-col gap-3">
             <div className="flex items-center justify-between border-b border-cyan-500/15 pb-2">
@@ -281,21 +327,27 @@ export default function JarvisHud({ token, onActivateVoice, userEmail }: JarvisH
               <span className="text-[8px] px-2 py-0.5 bg-cyan-500/10 rounded-full font-bold">FILES INDEXED</span>
             </div>
 
-            <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
-              {displayFiles.map((file, i) => (
+            <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+              {displayFiles.map((file: any, i) => (
                 <div 
                   key={file.id || i}
-                  className="p-2 bg-cyan-950/20 border border-cyan-500/5 hover:border-cyan-500/20 rounded flex items-center justify-between gap-2 text-[9px] transition-all group"
+                  onClick={() => file.content && setSelectedFile(file)}
+                  className={`p-2 bg-cyan-950/20 border border-cyan-500/5 ${file.content ? 'hover:border-amber-400/50 cursor-pointer border-dashed' : 'hover:border-cyan-500/20'} rounded flex items-center justify-between gap-2 text-[9px] transition-all group`}
                 >
                   <div className="flex items-center gap-1.5 truncate">
-                    <HardDrive className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
-                    <span className="text-slate-300 font-medium truncate group-hover:text-cyan-300 transition-colors">
+                    <HardDrive className={`w-3.5 h-3.5 ${file.content ? 'text-amber-400 animate-pulse' : 'text-cyan-400'} group-hover:scale-110 transition-transform`} />
+                    <span className={`text-slate-300 font-medium truncate ${file.content ? 'group-hover:text-amber-300 font-bold' : 'group-hover:text-cyan-300'} transition-colors`}>
                       {file.name}
                     </span>
                   </div>
-                  <span className="text-[8px] text-slate-500 shrink-0 font-bold uppercase">
-                    {file.size || 'LOGGED'}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    {file.content && (
+                      <span className="text-[7px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1 rounded font-bold uppercase">COMPILED</span>
+                    )}
+                    <span className="text-[8px] text-slate-500 shrink-0 font-bold uppercase">
+                      {file.size || 'LOGGED'}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -511,6 +563,28 @@ export default function JarvisHud({ token, onActivateVoice, userEmail }: JarvisH
             </div>
           </div>
 
+          {/* Stark OS Cognitive Logs */}
+          <div className="p-4 bg-black/40 border border-cyan-500/10 rounded-xl flex flex-col gap-3">
+            <div className="flex items-center justify-between border-b border-cyan-500/15 pb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                SYSTEM ACTIVITY TIMELINE
+              </span>
+              <span className="text-[8px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full font-bold">ONLINE</span>
+            </div>
+            
+            <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1 text-[8px] font-mono">
+              {activityLogs.map((log, i) => (
+                <div key={log.id || i} className="flex gap-2 leading-relaxed border-b border-cyan-500/5 pb-1">
+                  <span className="text-cyan-500 shrink-0">[{log.timestamp}]</span>
+                  <span className={log.type === 'done' ? 'text-emerald-400' : 'text-slate-300'}>
+                    {log.text}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
 
       </div>
@@ -594,6 +668,47 @@ export default function JarvisHud({ token, onActivateVoice, userEmail }: JarvisH
           API ENCRYPTION: SECURE_SOCKET_FLOW_200
         </span>
       </div>
+
+      {/* Holographic File Viewer Modal */}
+      <AnimatePresence>
+        {selectedFile && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 font-mono text-cyan-400">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-[#020204] border border-cyan-400/50 rounded-2xl w-full max-w-3xl overflow-hidden shadow-[0_0_50px_rgba(34,211,238,0.25)] flex flex-col max-h-[85vh]"
+            >
+              <div className="p-4 bg-cyan-950/20 border-b border-cyan-400/30 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <HardDrive className="w-4 h-4 text-amber-400 animate-pulse" />
+                  <div>
+                    <h3 className="text-sm font-bold text-amber-400 uppercase">{selectedFile.name}</h3>
+                    <p className="text-[9px] text-slate-500">CATEGORY: {selectedFile.category || 'DELIVERABLE'} • TYPE: {selectedFile.fileType || 'MARKDOWN'}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedFile(null)}
+                  className="px-2 py-1 border border-cyan-500/30 hover:border-cyan-400 hover:text-white rounded text-xs transition-colors"
+                >
+                  CLOSE_TERMINAL [X]
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto flex-1 bg-black/60 text-xs leading-relaxed text-slate-300">
+                <pre className="whitespace-pre-wrap select-text font-mono text-cyan-300 bg-cyan-950/5 p-4 rounded-xl border border-cyan-500/10">
+                  {selectedFile.content}
+                </pre>
+              </div>
+
+              <div className="p-3 bg-cyan-950/30 border-t border-cyan-500/20 flex justify-between items-center text-[9px] text-slate-500">
+                <span>STARK QUANTUM ENVELOPE ENCRYPTION</span>
+                <span>COMPILED VIA JARVIS COGNITIVE SUB-ROUTINE</span>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
