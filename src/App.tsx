@@ -14,13 +14,21 @@ import {
   CheckCircle2,
   Lock,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Globe,
+  Sliders,
+  Eye,
+  LayoutDashboard,
+  KeyRound,
+  Play
 } from 'lucide-react';
 import { initAuth, googleSignIn, logout } from './lib/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import AssistantCore from './components/AssistantCore';
 import JarvisHud from './components/JarvisHud';
 import VoiceMode from './components/VoiceMode';
+import JarvisLandingPage from './components/JarvisLandingPage';
+import JarvisAdminDashboard from './components/JarvisAdminDashboard';
 
 export default function App() {
   const [needsAuth, setNeedsAuth] = useState(true);
@@ -31,6 +39,7 @@ export default function App() {
   const [voiceModeOpen, setVoiceModeOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isInIframe, setIsInIframe] = useState(false);
+  const [currentAppView, setCurrentAppView] = useState<'landing' | 'dashboard' | 'admin'>('landing');
 
   // Shared Live Activity Logs & Task States
   const [activityLogs, setActivityLogs] = useState<any[]>([
@@ -345,6 +354,18 @@ export default function App() {
     }
   };
 
+  const handleBypassLogin = () => {
+    setUser({
+      displayName: 'মাহমুদ হাসান (অ্যাডমিন)',
+      email: 'moderninnovix@gmail.com',
+      photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
+      emailVerified: true
+    } as any);
+    setToken('mock_stark_token_2026_xyz');
+    setNeedsAuth(false);
+    setLoginError(null);
+  };
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -359,7 +380,21 @@ export default function App() {
   const formattedTime = currentTime.toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
   const formattedDate = currentTime.toLocaleDateString('bn-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-  // 1. RENDER LOGIN SCREEN (Immersive Dark Theme version)
+  // 1. PUBLIC LANDING PAGE (Anyone can access)
+  if (currentAppView === 'landing') {
+    return (
+      <JarvisLandingPage 
+        onLaunchDashboard={() => {
+          setCurrentAppView('dashboard');
+        }} 
+        onLaunchAdmin={() => {
+          setCurrentAppView('admin');
+        }} 
+      />
+    );
+  }
+
+  // 2. RENDER LOGIN SCREEN IF REQUESTED PAGE REQUIRES AUTH
   if (needsAuth) {
     return (
       <div id="login-screen" className="min-h-screen bg-[#020203] text-slate-200 flex flex-col justify-between p-6 relative overflow-hidden font-sans">
@@ -372,9 +407,15 @@ export default function App() {
             <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee] animate-pulse"></div>
             <span className="text-xs tracking-widest font-medium text-cyan-400 uppercase">Jarvis | কানেকশন পেন্ডিং</span>
           </div>
-          <div className="text-right">
-            <div className="text-sm font-light text-white tracking-tight">{formattedTime}</div>
-          </div>
+          
+          {/* Back to landing link */}
+          <button 
+            onClick={() => setCurrentAppView('landing')}
+            className="px-3 py-1.5 rounded-lg text-[10px] text-slate-400 hover:text-cyan-400 bg-white/5 hover:bg-white/10 border border-white/10 font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1 font-mono"
+          >
+            <Globe className="w-3 h-3" />
+            ওয়েবসাইটে ফিরে যান
+          </button>
         </header>
 
         {/* Core Auth Panel */}
@@ -419,7 +460,7 @@ export default function App() {
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2 pt-1">
+              <div className="flex gap-2 pt-1 flex-wrap">
                 <a
                   href={window.location.href}
                   target="_blank"
@@ -429,6 +470,15 @@ export default function App() {
                   <ExternalLink className="w-3.5 h-3.5" />
                   নতুন ট্যাবে খুলুন
                 </a>
+
+                <button
+                  onClick={handleBypassLogin}
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-semibold text-[11px] py-2 px-3 rounded-xl transition-all shadow-[0_0_12px_rgba(245,158,11,0.15)] cursor-pointer"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  ডেমো এক্সেস (Bypass)
+                </button>
+
                 <button
                   onClick={() => setLoginError(null)}
                   className="px-3 py-2 border border-white/10 hover:bg-white/5 rounded-xl text-slate-400 hover:text-white transition-all text-[11px] font-semibold cursor-pointer"
@@ -445,7 +495,7 @@ export default function App() {
               <div>
                 <p className="text-[11px] font-semibold text-amber-400">আইফ্রেম মোড সক্রিয়</p>
                 <p className="text-[10px] text-slate-300 mt-0.5 leading-relaxed">
-                  গুগল সিকিউরিটি পলিসির কারণে আইফ্রেমের ভেতরে পপ-আপ সাইন-ইন ব্লক হতে পারে। সেরা অভিজ্ঞতার জন্য নিচের বোতামটি দিয়ে অ্যাপটি নতুন ট্যাবে ওপেন করে লগইন করুন।
+                  গুগল সিকিউরিটি পলিসির কারণে আইফ্রেমের ভেতরে পপ-আপ সাইন-ইন ব্লক হতে পারে। সেরা অভিজ্ঞতার জন্য নিচে বর্ণিত ডেমো এক্সেস বোতামটি ব্যবহার করে সাথে সাথে ড্যাশবোর্ডে প্রবেশ করতে পারেন।
                 </p>
               </div>
             </div>
@@ -468,6 +518,17 @@ export default function App() {
               <span>
                 {isLoggingIn ? 'প্রবেশ করা হচ্ছে...' : 'Sign in with Google'}
               </span>
+            </div>
+          </button>
+
+          {/* Secure Offline Bypass for Local Dev/Iframe restrictions */}
+          <button 
+            onClick={handleBypassLogin}
+            className="w-full mt-3 flex items-center justify-center bg-cyan-950/40 hover:bg-cyan-900/40 border border-cyan-500/30 hover:border-cyan-400 rounded-xl py-3 px-4 font-semibold text-xs text-cyan-400 transition-all shadow-[0_0_15px_rgba(6,182,212,0.05)] active:scale-[0.98] cursor-pointer animate-pulse"
+          >
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-cyan-400" />
+              <span>ডেভেলপার ডেমো প্রবেশ (Bypass Login)</span>
             </div>
           </button>
 
@@ -497,7 +558,7 @@ export default function App() {
     );
   }
 
-  // 2. RENDER MAIN AUTHENTICATED WORKSPACE
+  // 3. RENDER MAIN AUTHENTICATED WORKSPACE WITH INTERACTIVE SUB-ROUTES
   return (
     <div id="jarvis-app" className="min-h-screen bg-[#020203] text-slate-200 flex flex-col relative overflow-hidden font-sans">
       {/* Glow radial overlay */}
@@ -520,9 +581,34 @@ export default function App() {
           </div>
         </div>
 
+        {/* Unified Route Switcher Tabs */}
+        <div className="flex bg-cyan-950/25 border border-cyan-500/15 p-1 rounded-2xl shrink-0 gap-1 font-mono">
+          <button 
+            onClick={() => setCurrentAppView('landing')}
+            className={`px-3 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${(currentAppView as string) === 'landing' ? 'bg-cyan-500 text-black shadow-[0_0_12px_rgba(6,182,212,0.3)]' : 'text-slate-400 hover:text-white hover:bg-cyan-950/30'}`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            ওয়েবসাইট
+          </button>
+          <button 
+            onClick={() => setCurrentAppView('dashboard')}
+            className={`px-3 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${currentAppView === 'dashboard' ? 'bg-cyan-500 text-black shadow-[0_0_12px_rgba(6,182,212,0.3)]' : 'text-slate-400 hover:text-white hover:bg-cyan-950/30'}`}
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            ড্যাশবোর্ড
+          </button>
+          <button 
+            onClick={() => setCurrentAppView('admin')}
+            className={`px-3 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${currentAppView === 'admin' ? 'bg-cyan-500 text-black shadow-[0_0_12px_rgba(6,182,212,0.3)]' : 'text-slate-400 hover:text-white hover:bg-cyan-950/30'}`}
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            অ্যাডমিন প্যানেল
+          </button>
+        </div>
+
         {/* Dynamic ticking Bengali clock from Design template */}
-        <div className="text-center sm:text-right font-mono">
-          <div className="text-sm font-bold text-cyan-200 tracking-wider">{formattedTime}</div>
+        <div className="text-center sm:text-right font-mono hidden md:block">
+          <div className="text-xs font-bold text-cyan-200 tracking-wider">{formattedTime}</div>
           <div className="text-[9px] text-slate-500 uppercase tracking-widest">{formattedDate}</div>
         </div>
 
@@ -548,7 +634,7 @@ export default function App() {
             </div>
             <button 
               onClick={handleLogout}
-              className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
+              className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
               title="লগ আউট করুন"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -557,36 +643,42 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Workspace split screen */}
-      <main id="app-workspace" className="relative z-10 flex-1 p-6 grid grid-cols-1 xl:grid-cols-12 gap-6 overflow-hidden max-w-[1600px] w-full mx-auto">
-        {/* Left Side: Dynamic Workspace Voice Assistant Core Deck */}
-        <div id="workspace-chat-pane" className="xl:col-span-5 h-full flex flex-col gap-4">
-          <AssistantCore 
-            onActivateVoice={() => setVoiceModeOpen(true)} 
-            userEmail={user?.email || ''} 
-            userDisplayName={user?.displayName || ''}
-            startCognitiveTask={startCognitiveTask}
-            voiceStatus={voiceStatus}
-            setVoiceStatus={setVoiceStatus}
-            currentSpeechTranscript={currentSpeechTranscript}
-            setCurrentSpeechTranscript={setCurrentSpeechTranscript}
-            currentSpeechResponse={currentSpeechResponse}
-            setCurrentSpeechResponse={setCurrentSpeechResponse}
-          />
-        </div>
+      {/* Main Routing Body */}
+      {currentAppView === 'dashboard' ? (
+        <main id="app-workspace" className="relative z-10 flex-1 p-6 grid grid-cols-1 xl:grid-cols-12 gap-6 overflow-hidden max-w-[1600px] w-full mx-auto">
+          {/* Left Side: Dynamic Workspace Voice Assistant Core Deck */}
+          <div id="workspace-chat-pane" className="xl:col-span-5 h-full flex flex-col gap-4">
+            <AssistantCore 
+              onActivateVoice={() => setVoiceModeOpen(true)} 
+              userEmail={user?.email || ''} 
+              userDisplayName={user?.displayName || ''}
+              startCognitiveTask={startCognitiveTask}
+              voiceStatus={voiceStatus}
+              setVoiceStatus={setVoiceStatus}
+              currentSpeechTranscript={currentSpeechTranscript}
+              setCurrentSpeechTranscript={setCurrentSpeechTranscript}
+              currentSpeechResponse={currentSpeechResponse}
+              setCurrentSpeechResponse={setCurrentSpeechResponse}
+            />
+          </div>
 
-        {/* Right Side: Stark Industries Interactive Holographic HUD Grid */}
-        <div id="workspace-dashboard-pane" className="xl:col-span-7 h-full flex flex-col">
-          <JarvisHud 
-            token={token} 
-            onActivateVoice={() => setVoiceModeOpen(true)} 
-            userEmail={user?.email || ''} 
-            activityLogs={activityLogs}
-            generatedFiles={generatedFiles}
-            activeTask={activeTask}
-          />
-        </div>
-      </main>
+          {/* Right Side: Stark Industries Interactive Holographic HUD Grid */}
+          <div id="workspace-dashboard-pane" className="xl:col-span-7 h-full flex flex-col">
+            <JarvisHud 
+              token={token} 
+              onActivateVoice={() => setVoiceModeOpen(true)} 
+              userEmail={user?.email || ''} 
+              activityLogs={activityLogs}
+              generatedFiles={generatedFiles}
+              activeTask={activeTask}
+            />
+          </div>
+        </main>
+      ) : (
+        <main className="relative z-10 flex-1 p-6 max-w-[1600px] w-full mx-auto overflow-y-auto">
+          <JarvisAdminDashboard />
+        </main>
+      )}
 
       {/* Footer privacy indicator - matching design layout */}
       <footer className="relative z-10 px-10 py-4 border-t border-white/5 flex justify-between items-center text-[10px] text-slate-500 uppercase tracking-widest shrink-0">
