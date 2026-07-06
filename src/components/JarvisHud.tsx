@@ -72,6 +72,33 @@ export default function JarvisHud({
   const [loading, setLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'IDLE' | 'SYNCING' | 'SECURE'>('SECURE');
 
+  // AI Multilingual Language Converter States
+  const [hudActiveTab, setHudActiveTab] = useState<'diagnostics' | 'translator'>('diagnostics');
+  const [translationInput, setTranslationInput] = useState('');
+  const [translationOutput, setTranslationOutput] = useState('');
+  const [translationSource, setTranslationSource] = useState('Auto-Detect');
+  const [translationTarget, setTranslationTarget] = useState('Bengali');
+  const [translationTone, setTranslationTone] = useState('Professional');
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translationError, setTranslationError] = useState('');
+  const [isTtsPlaying, setIsTtsPlaying] = useState(false);
+
+  // Template texts for quick input testing
+  const translationTemplates = [
+    {
+      label: 'বিজনেস মেইল',
+      text: 'Dear partner, we are highly interested in integrating our secure neural cloud with your local mainframe. Please let us know when we can hold a strategic alignment session.'
+    },
+    {
+      label: 'কোড রিকোয়েস্ট',
+      text: 'function optimizeMatrix(vector) { return vector.map(x => x * 1.25); } // Can you explain and refactor this?'
+    },
+    {
+      label: 'অফিসিয়াল রিকমেন্ডেশন',
+      text: 'I highly recommend upgrading the current security protocols of the neural core to prevent unauthorized external vector interventions.'
+    }
+  ];
+
   // Load active custom directives from Assistant Settings
   const [customDirectives, setCustomDirectives] = useState<string[]>([]);
   const [assistantName, setAssistantName] = useState('Jarvis');
@@ -111,6 +138,73 @@ export default function JarvisHud({
 
     return () => clearInterval(timer);
   }, []);
+
+  const handleTranslateText = async () => {
+    if (!translationInput.trim()) return;
+    setIsTranslating(true);
+    setTranslationError('');
+    try {
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: translationInput,
+          sourceLang: translationSource,
+          targetLang: translationTarget,
+          tone: translationTone
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTranslationOutput(data.translatedText);
+      } else {
+        setTranslationError(data.error || 'অনুবাদ করতে ব্যর্থ হয়েছে।');
+      }
+    } catch (err) {
+      console.error('Translation error:', err);
+      setTranslationError('সার্ভারের সাথে সংযোগ ব্যাহত হয়েছে।');
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const handlePlayTranslationTts = async () => {
+    if (!translationOutput) return;
+    setIsTtsPlaying(true);
+    try {
+      const voiceGender = localStorage.getItem('jarvis_gender') || 'male';
+      const voiceName = voiceGender === 'female' ? 'Zephyr' : 'Puck';
+      
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: translationOutput,
+          voiceName
+        })
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.audio) {
+        const audioBytes = Uint8Array.from(atob(data.audio), c => c.charCodeAt(0));
+        const blob = new Blob([audioBytes], { type: 'audio/mp3' });
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.onended = () => {
+          setIsTtsPlaying(false);
+        };
+        audio.onerror = () => {
+          setIsTtsPlaying(false);
+        };
+        await audio.play();
+      } else {
+        setIsTtsPlaying(false);
+      }
+    } catch (err) {
+      console.error('Translation TTS play error:', err);
+      setIsTtsPlaying(false);
+    }
+  };
 
   // Fetch real workspace entries if Google Token exists
   const fetchWorkspaceData = async () => {
@@ -203,6 +297,30 @@ export default function JarvisHud({
             title="সিঙ্ক ডাটা"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Cyber Sub-Header / HUD Mode Selector */}
+      <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-2.5 bg-cyan-950/15 border-b border-cyan-500/10 z-10 text-[10px] font-bold uppercase tracking-wider font-mono gap-2">
+        <div className="flex items-center gap-1.5 text-slate-400">
+          <Activity className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+          <span>HUD SYSTEM PORTAL CONTROL:</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setHudActiveTab('diagnostics')}
+            className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 text-[9px] ${hudActiveTab === 'diagnostics' ? 'bg-cyan-500/15 border-cyan-400 text-white shadow-[0_0_12px_rgba(6,182,212,0.35)]' : 'border-cyan-500/10 text-cyan-500 hover:border-cyan-500/30 hover:text-cyan-300'}`}
+          >
+            <Cpu className="w-3.5 h-3.5" />
+            INTELLIGENCE GRID (ডায়াগনস্টিকস ও মেট্রিক্স)
+          </button>
+          <button
+            onClick={() => setHudActiveTab('translator')}
+            className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 text-[9px] ${hudActiveTab === 'translator' ? 'bg-cyan-500/15 border-cyan-400 text-white shadow-[0_0_12px_rgba(6,182,212,0.35)]' : 'border-cyan-500/10 text-cyan-500 hover:border-cyan-500/30 hover:text-cyan-300'}`}
+          >
+            <Languages className="w-3.5 h-3.5" />
+            AI TRANSLATION LAB (ভাষা রূপান্তর ল্যাব)
           </button>
         </div>
       </div>
@@ -355,237 +473,431 @@ export default function JarvisHud({
 
         </div>
 
-        {/* ================= CENTER COLUMN (ARC REACTOR PORTAL) ================= */}
-        <div className="xl:col-span-4 flex flex-col items-center justify-center gap-4 py-2">
-          
-          <div className="text-center">
-            <span className="text-[9px] text-slate-400 tracking-widest uppercase">CENTRAL ARCH-REACTOR ENGINE</span>
-            <h2 className="text-sm font-bold text-cyan-300 tracking-wider uppercase mt-1">HOLOGRAPHIC CONTROL CORE</h2>
-          </div>
-
-          {/* Majestic Concentric Rotating Arc Reactor Graphic */}
-          <div className="relative flex items-center justify-center p-8">
-            
-            {/* Outer Cyber Radial Grid */}
-            <div className="absolute w-64 h-64 border border-cyan-500/5 rounded-full pointer-events-none" />
-            <div className="absolute w-56 h-56 border border-cyan-500/10 rounded-full border-dashed pointer-events-none" />
-            
-            {/* Ring 1 (Slow Outer Dials) */}
-            <div className="absolute w-48 h-48 border border-cyan-500/20 rounded-full border-dashed animate-[spin_40s_linear_infinite] pointer-events-none"></div>
-            
-            {/* Ring 2 (Fast Intersect Dials Reverse) */}
-            <div className="absolute w-40 h-40 border-2 border-cyan-500/15 rounded-full animate-[spin_15s_linear_infinite_reverse] pointer-events-none" style={{ borderStyle: 'double' }}></div>
-            
-            {/* Ring 3 (Concentric Technical tickmarks using SVG) */}
-            <svg className="absolute w-44 h-44 animate-[spin_25s_linear_infinite] pointer-events-none" viewBox="0 0 100 100">
-              <circle 
-                cx="50" 
-                cy="50" 
-                r="44" 
-                fill="none" 
-                stroke="#06b6d4" 
-                strokeWidth="1.5" 
-                strokeDasharray="3 8 20 6" 
-                className="opacity-30"
-              />
-            </svg>
-
-            {/* Ring 4 (Concentric dots tickmarks) */}
-            <svg className="absolute w-36 h-36 animate-[spin_10s_linear_infinite_reverse] pointer-events-none" viewBox="0 0 100 100">
-              <circle 
-                cx="50" 
-                cy="50" 
-                r="40" 
-                fill="none" 
-                stroke="#22d3ee" 
-                strokeWidth="2" 
-                strokeDasharray="1 10" 
-                className="opacity-40"
-              />
-            </svg>
-
-            {/* Actual Interactive Arc Reactor Core Trigger Button */}
-            <button
-              onClick={onActivateVoice}
-              className="relative w-28 h-28 rounded-full bg-cyan-950/45 hover:bg-cyan-900/50 border border-cyan-400/40 shadow-[0_0_40px_rgba(34,211,238,0.35)] flex items-center justify-center cursor-pointer group transition-all duration-500 active:scale-95 z-20"
-            >
-              {/* Core inner glossy radial overlay */}
-              <div className="absolute inset-1 rounded-full bg-[radial-gradient(circle_at_50%_25%,_rgba(255,255,255,0.15)_0%,_transparent_75%)]" />
+        {hudActiveTab === 'diagnostics' ? (
+          <>
+            {/* ================= CENTER COLUMN (ARC REACTOR PORTAL) ================= */}
+            <div className="xl:col-span-4 flex flex-col items-center justify-center gap-4 py-2">
               
-              {/* Stark Arc Reactor Pulsing Triangle Neon Polygon SVG */}
-              <svg className="w-20 h-20 animate-pulse duration-1000" viewBox="0 0 100 100">
-                <defs>
-                  <filter id="glow-neon" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="3" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                  </filter>
-                </defs>
+              <div className="text-center">
+                <span className="text-[9px] text-slate-400 tracking-widest uppercase">CENTRAL ARCH-REACTOR ENGINE</span>
+                <h2 className="text-sm font-bold text-cyan-300 tracking-wider uppercase mt-1">HOLOGRAPHIC CONTROL CORE</h2>
+              </div>
+
+              {/* Majestic Concentric Rotating Arc Reactor Graphic */}
+              <div className="relative flex items-center justify-center p-8">
                 
-                {/* Triangular arc energy cells */}
-                <polygon 
-                  points="50,18 20,70 80,70" 
-                  fill="none" 
-                  stroke="#22d3ee" 
-                  strokeWidth="4" 
-                  filter="url(#glow-neon)"
-                  className="drop-shadow-[0_0_10px_#06b6d4]"
-                />
-                <polygon 
-                  points="50,26 27,66 73,66" 
-                  fill="rgba(6,182,212,0.15)" 
-                  stroke="#22d3ee" 
-                  strokeWidth="2.5" 
-                />
+                {/* Outer Cyber Radial Grid */}
+                <div className="absolute w-64 h-64 border border-cyan-500/5 rounded-full pointer-events-none" />
+                <div className="absolute w-56 h-56 border border-cyan-500/10 rounded-full border-dashed pointer-events-none" />
+                
+                {/* Ring 1 (Slow Outer Dials) */}
+                <div className="absolute w-48 h-48 border border-cyan-500/20 rounded-full border-dashed animate-[spin_40s_linear_infinite] pointer-events-none"></div>
+                
+                {/* Ring 2 (Fast Intersect Dials Reverse) */}
+                <div className="absolute w-40 h-40 border-2 border-cyan-500/15 rounded-full animate-[spin_15s_linear_infinite_reverse] pointer-events-none" style={{ borderStyle: 'double' }}></div>
+                
+                {/* Ring 3 (Concentric Technical tickmarks using SVG) */}
+                <svg className="absolute w-44 h-44 animate-[spin_25s_linear_infinite] pointer-events-none" viewBox="0 0 100 100">
+                  <circle 
+                    cx="50" 
+                    cy="50" 
+                    r="44" 
+                    fill="none" 
+                    stroke="#06b6d4" 
+                    strokeWidth="1.5" 
+                    strokeDasharray="3 8 20 6" 
+                    className="opacity-30"
+                  />
+                </svg>
 
-                {/* Concentric center circular reactor core */}
-                <circle cx="50" cy="54" r="12" fill="none" stroke="#22d3ee" strokeWidth="2.5" />
-                <circle cx="50" cy="54" r="6" fill="#ffffff" className="animate-ping duration-1000" />
-                <circle cx="50" cy="54" r="4" fill="#22d3ee" />
-              </svg>
+                {/* Ring 4 (Concentric dots tickmarks) */}
+                <svg className="absolute w-36 h-36 animate-[spin_10s_linear_infinite_reverse] pointer-events-none" viewBox="0 0 100 100">
+                  <circle 
+                    cx="50" 
+                    cy="50" 
+                    r="40" 
+                    fill="none" 
+                    stroke="#22d3ee" 
+                    strokeWidth="2" 
+                    strokeDasharray="1 10" 
+                    className="opacity-40"
+                  />
+                </svg>
 
-              {/* Technical indicators overlay */}
-              <span className="absolute bottom-4 text-[7px] font-bold tracking-widest text-cyan-300 uppercase opacity-75 group-hover:opacity-100 transition-opacity">
-                ACTIVATE VOICE
-              </span>
-            </button>
-          </div>
-
-          {/* Stark OS Branding Coordinates */}
-          <div className="text-center pt-2 text-[10px] text-slate-400 space-y-1">
-            <div className="font-bold text-cyan-400">CORE TEMPERATURE STATUS: NOMINAL</div>
-            <div className="text-[9px] text-slate-500">STARK INDUSTRIES SECURITIES APPARATUS © 2026</div>
-          </div>
-
-          {/* Neural Core Adaptations (Evolved Directives List) */}
-          <div className="w-full mt-2 p-3 bg-cyan-950/10 border border-cyan-500/10 rounded-xl text-left space-y-2">
-            <span className="text-[9px] font-bold text-cyan-400 uppercase tracking-wider block border-b border-cyan-500/15 pb-1">
-              ACTIVE NEURAL CORE DIRECTIVES ({customDirectives.length})
-            </span>
-            <div className="space-y-1 max-h-[100px] overflow-y-auto">
-              {customDirectives.map((directive, idx) => (
-                <div key={idx} className="flex items-center gap-1.5 text-[9px] text-slate-300">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0"></span>
-                  <span className="truncate">{directive}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-        </div>
-
-        {/* ================= RIGHT SIDEBAR (COLUMN 3) ================= */}
-        <div className="xl:col-span-4 flex flex-col gap-4">
-          
-          {/* Faithful Weather HUD Card from stark image */}
-          <div className="p-4 bg-black/40 border border-cyan-500/10 rounded-xl flex flex-col gap-3 hover:border-cyan-500/20 transition-all">
-            <div className="flex items-center justify-between border-b border-cyan-500/15 pb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <Sun className="w-3.5 h-3.5 text-cyan-400" />
-                ENVIRONMENT MATRIX
-              </span>
-              <span className="text-[9px] font-bold text-cyan-500">LOC_METRICS</span>
-            </div>
-
-            {/* Layout faithful to STARK image */}
-            <div className="grid grid-cols-2 gap-4 items-center">
-              <div>
-                <div className="text-2xl font-light text-cyan-200 tracking-tight flex items-start">
-                  30°C
-                  <span className="text-xs font-bold ml-1 text-cyan-400">FAIR</span>
-                </div>
-                <div className="text-[9px] text-slate-400 uppercase mt-0.5 tracking-wider">
-                  Updated: 5/5/13 5:55 PM
-                </div>
-              </div>
-              
-              <div className="space-y-1 text-[9px] text-slate-300 border-l border-cyan-500/10 pl-3">
-                <div className="flex justify-between">
-                  <span>HUMIDITY:</span>
-                  <span className="font-bold text-cyan-300">14%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>WIND:</span>
-                  <span className="font-bold text-cyan-300">8 KM/H (E)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>PRESSURE:</span>
-                  <span className="font-bold text-cyan-300">1015.2 MB</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>SUNRISE:</span>
-                  <span className="font-bold text-cyan-300">7:00 AM</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>SUNSET:</span>
-                  <span className="font-bold text-cyan-300">8:19 PM</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Extra detail line */}
-            <div className="flex justify-between items-center text-[9px] bg-cyan-500/5 p-1.5 rounded border border-cyan-500/5 text-slate-400">
-              <span className="flex items-center gap-1">
-                <Moon className="w-3 h-3 text-cyan-300" />
-                MOON PHASE: WANING CRESCENT
-              </span>
-              <span className="text-[8px] text-emerald-400 font-bold uppercase">STABLE</span>
-            </div>
-          </div>
-
-          {/* Secure Chrono Index (Calendar) */}
-          <div className="p-4 bg-black/40 border border-cyan-500/10 rounded-xl flex flex-col gap-3">
-            <div className="flex items-center justify-between border-b border-cyan-500/15 pb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <CalendarIcon className="w-3.5 h-3.5 text-cyan-400" />
-                CHRONO INDEX BRIEFINGS
-              </span>
-              <span className="text-[8px] px-2 py-0.5 bg-cyan-500/10 rounded-full font-bold">SECURE LOG</span>
-            </div>
-
-            <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
-              {displayEvents.map((event, i) => (
-                <div 
-                  key={event.id || i}
-                  className="p-2 bg-cyan-950/20 border border-cyan-500/5 hover:border-cyan-500/20 rounded flex flex-col gap-1 text-[9px] transition-all group"
+                {/* Actual Interactive Arc Reactor Core Trigger Button */}
+                <button
+                  onClick={onActivateVoice}
+                  className="relative w-28 h-28 rounded-full bg-cyan-950/45 hover:bg-cyan-900/50 border border-cyan-400/40 shadow-[0_0_40px_rgba(34,211,238,0.35)] flex items-center justify-center cursor-pointer group transition-all duration-500 active:scale-95 z-20"
                 >
-                  <div className="flex items-center justify-between font-bold text-slate-200">
-                    <span className="truncate group-hover:text-cyan-300 transition-colors">
-                      {event.summary}
-                    </span>
-                    <ArrowUpRight className="w-3 h-3 text-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <div className="text-[8px] text-slate-500 flex justify-between">
-                    <span>{new Date(event.start).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' })}</span>
-                    <span className="truncate max-w-[150px]">{event.location || 'Stark Lab'}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+                  {/* Core inner glossy radial overlay */}
+                  <div className="absolute inset-1 rounded-full bg-[radial-gradient(circle_at_50%_25%,_rgba(255,255,255,0.15)_0%,_transparent_75%)]" />
+                  
+                  {/* Stark Arc Reactor Pulsing Triangle Neon Polygon SVG */}
+                  <svg className="w-20 h-20 animate-pulse duration-1000" viewBox="0 0 100 100">
+                    <defs>
+                      <filter id="glow-neon" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                      </filter>
+                    </defs>
+                    
+                    {/* Triangular arc energy cells */}
+                    <polygon 
+                      points="50,18 20,70 80,70" 
+                      fill="none" 
+                      stroke="#22d3ee" 
+                      strokeWidth="4" 
+                      filter="url(#glow-neon)"
+                      className="drop-shadow-[0_0_10px_#06b6d4]"
+                    />
+                    <polygon 
+                      points="50,26 27,66 73,66" 
+                      fill="rgba(6,182,212,0.15)" 
+                      stroke="#22d3ee" 
+                      strokeWidth="2.5" 
+                    />
 
-          {/* Stark OS Cognitive Logs */}
-          <div className="p-4 bg-black/40 border border-cyan-500/10 rounded-xl flex flex-col gap-3">
-            <div className="flex items-center justify-between border-b border-cyan-500/15 pb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <Activity className="w-3.5 h-3.5 text-cyan-400" />
-                SYSTEM ACTIVITY TIMELINE
-              </span>
-              <span className="text-[8px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full font-bold">ONLINE</span>
-            </div>
-            
-            <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1 text-[8px] font-mono">
-              {activityLogs.map((log, i) => (
-                <div key={log.id || i} className="flex gap-2 leading-relaxed border-b border-cyan-500/5 pb-1">
-                  <span className="text-cyan-500 shrink-0">[{log.timestamp}]</span>
-                  <span className={log.type === 'done' ? 'text-emerald-400' : 'text-slate-300'}>
-                    {log.text}
+                    {/* Concentric center circular reactor core */}
+                    <circle cx="50" cy="54" r="12" fill="none" stroke="#22d3ee" strokeWidth="2.5" />
+                    <circle cx="50" cy="54" r="6" fill="#ffffff" className="animate-ping duration-1000" />
+                    <circle cx="50" cy="54" r="4" fill="#22d3ee" />
+                  </svg>
+
+                  {/* Technical indicators overlay */}
+                  <span className="absolute bottom-4 text-[7px] font-bold tracking-widest text-cyan-300 uppercase opacity-75 group-hover:opacity-100 transition-opacity">
+                    ACTIVATE VOICE
                   </span>
+                </button>
+              </div>
+
+              {/* Stark OS Branding Coordinates */}
+              <div className="text-center pt-2 text-[10px] text-slate-400 space-y-1">
+                <div className="font-bold text-cyan-400">CORE TEMPERATURE STATUS: NOMINAL</div>
+                <div className="text-[9px] text-slate-500">STARK INDUSTRIES SECURITIES APPARATUS © 2026</div>
+              </div>
+
+              {/* Neural Core Adaptations (Evolved Directives List) */}
+              <div className="w-full mt-2 p-3 bg-cyan-950/10 border border-cyan-500/10 rounded-xl text-left space-y-2">
+                <span className="text-[9px] font-bold text-cyan-400 uppercase tracking-wider block border-b border-cyan-500/15 pb-1">
+                  ACTIVE NEURAL CORE DIRECTIVES ({customDirectives.length})
+                </span>
+                <div className="space-y-1 max-h-[100px] overflow-y-auto">
+                  {customDirectives.map((directive, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5 text-[9px] text-slate-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0"></span>
+                      <span className="truncate">{directive}</span>
+                    </div>
+                  ))}
                 </div>
+              </div>
+
+            </div>
+
+            {/* ================= RIGHT SIDEBAR (COLUMN 3) ================= */}
+            <div className="xl:col-span-4 flex flex-col gap-4">
+              
+              {/* Faithful Weather HUD Card from stark image */}
+              <div className="p-4 bg-black/40 border border-cyan-500/10 rounded-xl flex flex-col gap-3 hover:border-cyan-500/20 transition-all">
+                <div className="flex items-center justify-between border-b border-cyan-500/15 pb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <Sun className="w-3.5 h-3.5 text-cyan-400" />
+                    ENVIRONMENT MATRIX
+                  </span>
+                  <span className="text-[9px] font-bold text-cyan-500">LOC_METRICS</span>
+                </div>
+
+                {/* Layout faithful to STARK image */}
+                <div className="grid grid-cols-2 gap-4 items-center">
+                  <div>
+                    <div className="text-2xl font-light text-cyan-200 tracking-tight flex items-start">
+                      30°C
+                      <span className="text-xs font-bold ml-1 text-cyan-400">FAIR</span>
+                    </div>
+                    <div className="text-[9px] text-slate-400 uppercase mt-0.5 tracking-wider">
+                      Updated: 5/5/13 5:55 PM
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1 text-[9px] text-slate-300 border-l border-cyan-500/10 pl-3">
+                    <div className="flex justify-between">
+                      <span>HUMIDITY:</span>
+                      <span className="font-bold text-cyan-300">14%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>WIND:</span>
+                      <span className="font-bold text-cyan-300">8 KM/H (E)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>PRESSURE:</span>
+                      <span className="font-bold text-cyan-300">1015.2 MB</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>SUNRISE:</span>
+                      <span className="font-bold text-cyan-300">7:00 AM</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>SUNSET:</span>
+                      <span className="font-bold text-cyan-300">8:19 PM</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Extra detail line */}
+                <div className="flex justify-between items-center text-[9px] bg-cyan-500/5 p-1.5 rounded border border-cyan-500/5 text-slate-400">
+                  <span className="flex items-center gap-1">
+                    <Moon className="w-3 h-3 text-cyan-300" />
+                    MOON PHASE: WANING CRESCENT
+                  </span>
+                  <span className="text-[8px] text-emerald-400 font-bold uppercase">STABLE</span>
+                </div>
+              </div>
+
+              {/* Secure Chrono Index (Calendar) */}
+              <div className="p-4 bg-black/40 border border-cyan-500/10 rounded-xl flex flex-col gap-3">
+                <div className="flex items-center justify-between border-b border-cyan-500/15 pb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <CalendarIcon className="w-3.5 h-3.5 text-cyan-400" />
+                    CHRONO INDEX BRIEFINGS
+                  </span>
+                  <span className="text-[8px] px-2 py-0.5 bg-cyan-500/10 rounded-full font-bold">SECURE LOG</span>
+                </div>
+
+                <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+                  {displayEvents.map((event, i) => (
+                    <div 
+                      key={event.id || i}
+                      className="p-2 bg-cyan-950/20 border border-cyan-500/5 hover:border-cyan-500/20 rounded flex flex-col gap-1 text-[9px] transition-all group"
+                    >
+                      <div className="flex items-center justify-between font-bold text-slate-200">
+                        <span className="truncate group-hover:text-cyan-300 transition-colors">
+                          {event.summary}
+                        </span>
+                        <ArrowUpRight className="w-3 h-3 text-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <div className="text-[8px] text-slate-500 flex justify-between">
+                        <span>{new Date(event.start).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className="truncate max-w-[150px]">{event.location || 'Stark Lab'}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Stark OS Cognitive Logs */}
+              <div className="p-4 bg-black/40 border border-cyan-500/10 rounded-xl flex flex-col gap-3">
+                <div className="flex items-center justify-between border-b border-cyan-500/15 pb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                    SYSTEM ACTIVITY TIMELINE
+                  </span>
+                  <span className="text-[8px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full font-bold">ONLINE</span>
+                </div>
+                
+                <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1 text-[8px] font-mono">
+                  {activityLogs.map((log, i) => (
+                    <div key={log.id || i} className="flex gap-2 leading-relaxed border-b border-cyan-500/5 pb-1">
+                      <span className="text-cyan-500 shrink-0">[{log.timestamp}]</span>
+                      <span className={log.type === 'done' ? 'text-emerald-400' : 'text-slate-300'}>
+                        {log.text}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </>
+        ) : (
+          /* ================= AI TRANSLATION LAB WORKSPACE (xl:col-span-8) ================= */
+          <div className="xl:col-span-8 bg-black/45 border border-cyan-500/15 rounded-xl p-5 flex flex-col gap-5 relative overflow-hidden group hover:border-cyan-500/25 transition-all">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rotate-45 translate-x-16 -translate-y-16 pointer-events-none group-hover:bg-cyan-500/10 transition-colors"></div>
+            
+            <div className="flex items-center justify-between border-b border-cyan-500/15 pb-3">
+              <span className="text-[12px] font-bold uppercase tracking-widest flex items-center gap-2 text-cyan-300">
+                <Languages className="w-5 h-5 text-cyan-400 animate-pulse" />
+                AI MULTILINGUAL TRANSLATION PROTOCOL
+              </span>
+              <span className="text-[8px] px-2.5 py-1 bg-cyan-500/10 text-cyan-400 rounded-full font-bold border border-cyan-500/20">NEURAL MATRIX ACTIVE</span>
+            </div>
+
+            {/* Translation Settings Controls */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[10px] font-bold">
+              {/* Source Lang Selection */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-slate-400 text-[9px] uppercase tracking-wider">SOURCE LANGUAGE (উৎস ভাষা)</span>
+                <select 
+                  value={translationSource}
+                  onChange={(e) => setTranslationSource(e.target.value)}
+                  className="bg-[#020204] border border-cyan-500/20 text-cyan-300 rounded-lg p-2 focus:border-cyan-400 focus:outline-none cursor-pointer text-[11px]"
+                >
+                  <option value="Auto-Detect">🔍 AUTO-DETECT (স্বয়ংক্রিয় সনাক্তকরণ)</option>
+                  <option value="English">🇬🇧 ENGLISH (ইংরেজি)</option>
+                  <option value="Bengali">🇧🇩 BENGALI (বাংলা)</option>
+                  <option value="Hindi">🇮🇳 HINDI (হিন্দি)</option>
+                  <option value="Spanish">🇪🇸 SPANISH (স্প্যানিশ)</option>
+                  <option value="French">🇫🇷 FRENCH (ফ্রেঞ্চ)</option>
+                  <option value="German">🇩🇪 GERMAN (জার্মান)</option>
+                  <option value="Japanese">🇯🇵 JAPANESE (জাপানি)</option>
+                  <option value="Chinese">🇨🇳 CHINESE (চীনা)</option>
+                  <option value="Arabic">🇸🇦 ARABIC (আরবি)</option>
+                </select>
+              </div>
+
+              {/* Target Lang Selection */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-slate-400 text-[9px] uppercase tracking-wider">TARGET LANGUAGE (গন্তব্য ভাষা)</span>
+                <select 
+                  value={translationTarget}
+                  onChange={(e) => setTranslationTarget(e.target.value)}
+                  className="bg-[#020204] border border-cyan-500/20 text-cyan-300 rounded-lg p-2 focus:border-cyan-400 focus:outline-none cursor-pointer text-[11px]"
+                >
+                  <option value="Bengali">🇧🇩 BENGALI (বাংলা)</option>
+                  <option value="English">🇬🇧 ENGLISH (ইংরেজি)</option>
+                  <option value="Hindi">🇮🇳 HINDI (হিন্দি)</option>
+                  <option value="Spanish">🇪🇸 SPANISH (স্প্যানিশ)</option>
+                  <option value="French">🇫🇷 FRENCH (ফ্রেঞ্চ)</option>
+                  <option value="German">🇩🇪 GERMAN (জার্মান)</option>
+                  <option value="Japanese">🇯🇵 JAPANESE (জাপানি)</option>
+                  <option value="Chinese">🇨🇳 CHINESE (চীনা)</option>
+                  <option value="Arabic">🇸🇦 ARABIC (আরবি)</option>
+                </select>
+              </div>
+
+              {/* Style / Tone Selector */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-slate-400 text-[9px] uppercase tracking-wider">TRANSLATION TONE (অনুবাদ শৈলী)</span>
+                <select 
+                  value={translationTone}
+                  onChange={(e) => setTranslationTone(e.target.value)}
+                  className="bg-[#020204] border border-cyan-500/20 text-cyan-300 rounded-lg p-2 focus:border-cyan-400 focus:outline-none cursor-pointer text-[11px]"
+                >
+                  <option value="Professional">💼 PROFESSIONAL (আনুষ্ঠানিক)</option>
+                  <option value="Casual">💬 CASUAL (অনানুষ্ঠানিক / সহজ)</option>
+                  <option value="Technical">💻 TECHNICAL (প্রযুক্তিগত)</option>
+                  <option value="Creative">🎨 CREATIVE (সৃজনশীল)</option>
+                  <option value="Academic">🎓 ACADEMIC (শিক্ষাগত)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Quick Templates Row */}
+            <div className="flex flex-wrap items-center gap-2 text-[9px]">
+              <span className="text-slate-500 font-bold uppercase">QUICK TEMPLATES (নমুনা লেখা):</span>
+              {translationTemplates.map((tpl, i) => (
+                <button
+                  key={i}
+                  onClick={() => setTranslationInput(tpl.text)}
+                  className="px-2 py-1 bg-cyan-950/35 hover:bg-cyan-500/15 border border-cyan-500/20 rounded text-cyan-400 cursor-pointer transition-colors"
+                >
+                  {tpl.label}
+                </button>
               ))}
             </div>
-          </div>
 
-        </div>
+            {/* Twin Textareas Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1">
+              {/* Input Panel */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                  <span>INPUT TEXT (উৎস টেক্সট)</span>
+                  <span>{translationInput.length} CHARS</span>
+                </div>
+                <div className="relative flex-1 min-h-[180px]">
+                  <textarea
+                    value={translationInput}
+                    onChange={(e) => setTranslationInput(e.target.value)}
+                    placeholder="Type or paste text to translate..."
+                    className="w-full h-full min-h-[180px] bg-black/60 border border-cyan-500/15 focus:border-cyan-400/50 rounded-xl p-3 text-xs leading-relaxed text-slate-200 placeholder-slate-600 focus:outline-none resize-none font-mono"
+                  />
+                  {translationInput && (
+                    <button
+                      onClick={() => setTranslationInput('')}
+                      className="absolute top-2 right-2 text-[8px] bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                    >
+                      CLR [X]
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Output Panel */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                  <span>TRANSLATED RESULT (অনুবাদিত ফলাফল)</span>
+                  {translationOutput && (
+                    <span className="text-emerald-400">SUCCESS</span>
+                  )}
+                </div>
+                <div className="relative flex-1 min-h-[180px]">
+                  <textarea
+                    value={translationOutput}
+                    readOnly
+                    placeholder="Translated output will appear here..."
+                    className="w-full h-full min-h-[180px] bg-cyan-950/5 border border-cyan-500/20 rounded-xl p-3 text-xs leading-relaxed text-cyan-300 placeholder-cyan-950/50 focus:outline-none resize-none font-mono"
+                  />
+                  {isTranslating && (
+                    <div className="absolute inset-0 bg-black/75 backdrop-blur-[1px] flex flex-col items-center justify-center gap-3 rounded-xl border border-cyan-500/30">
+                      <div className="relative w-10 h-10">
+                        <div className="absolute inset-0 border-2 border-cyan-500/10 rounded-full" />
+                        <div className="absolute inset-0 border-2 border-t-cyan-400 rounded-full animate-spin" />
+                      </div>
+                      <span className="text-[10px] tracking-widest text-cyan-400 font-bold animate-pulse">PROCESSING NEURAL CONVERSION...</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Error Message if any */}
+            {translationError && (
+              <div className="p-2.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-bold rounded-lg uppercase tracking-wide">
+                ⚠️ ERROR: {translationError}
+              </div>
+            )}
+
+            {/* Bottom Controls / Action Bar */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between border-t border-cyan-500/15 pt-4 mt-1">
+              <div className="flex gap-2">
+                {translationOutput && (
+                  <>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(translationOutput);
+                        const btn = document.getElementById('copy-translation-btn');
+                        if (btn) {
+                          const orig = btn.innerHTML;
+                          btn.innerHTML = 'COPIED ✓';
+                          setTimeout(() => btn.innerHTML = orig, 1500);
+                        }
+                      }}
+                      id="copy-translation-btn"
+                      className="px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 rounded-lg text-cyan-400 hover:text-white font-bold text-[9px] cursor-pointer transition-all uppercase"
+                    >
+                      COPY RESULT (কপি করুন)
+                    </button>
+                    <button
+                      onClick={handlePlayTranslationTts}
+                      disabled={isTtsPlaying}
+                      className={`px-3 py-1.5 border rounded-lg font-bold text-[9px] cursor-pointer transition-all uppercase flex items-center gap-1 ${isTtsPlaying ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 animate-pulse' : 'bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-500/20 text-cyan-400 hover:text-white'}`}
+                    >
+                      <Volume2 className="w-3.5 h-3.5" />
+                      {isTtsPlaying ? 'PLAYING AUDIO...' : 'SPEAK RESULT (শুনুন)'}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <button
+                onClick={handleTranslateText}
+                disabled={isTranslating || !translationInput.trim()}
+                className="px-5 py-2.5 bg-cyan-500/15 hover:bg-cyan-500/35 disabled:opacity-40 disabled:cursor-not-allowed border-2 border-cyan-400/40 hover:border-cyan-400 rounded-xl text-white font-bold text-[10px] cursor-pointer transition-all uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.15)]"
+              >
+                <Sparkles className="w-4 h-4 text-cyan-400" />
+                INITIATE NEURAL TRANSLATION (অনুবাদ শুরু করুন)
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
 

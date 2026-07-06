@@ -3,8 +3,12 @@ import path from 'path';
 import http from 'http';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
-import { GoogleGenAI, Modality } from '@google/genai';
 import { WebSocketServer, WebSocket } from 'ws';
+
+// Polyfill global.WebSocket for the Google GenAI SDK to use in Node.js Live API
+(global as any).WebSocket = WebSocket;
+
+import { GoogleGenAI, Modality } from '@google/genai';
 
 // Load environment variables
 dotenv.config();
@@ -41,7 +45,7 @@ app.post('/api/chat', async (req, res) => {
     // Select the model as requested by the user
     // models/gemini-3.5-flash for general/default,
     // models/gemini-3.1-pro-preview for complex tasks,
-    // models/gemini-3.1-flash-lite for fast tasks.
+    // models/gemini-3.1-flash-lite for fast tasks. 
     let selectedModel = 'gemini-3.5-flash';
     if (model === 'complex') {
       selectedModel = 'gemini-3.1-pro-preview';
@@ -136,6 +140,48 @@ Your current local time is: ${new Date().toLocaleString()}. Always deliver highl
       });
     }
     res.status(500).json({ error: error.message || 'Failed to generate chat response' });
+  }
+});
+
+/**
+ * API ROUTE: /api/translate
+ * High-performance neural translation between languages using Gemini 3.5 Flash
+ */
+app.post('/api/translate', async (req, res) => {
+  try {
+    const { text, sourceLang, targetLang, tone } = req.body;
+    if (!text) {
+      return res.status(400).json({ error: 'Text content is required for translation' });
+    }
+
+    const targetLanguage = targetLang || 'Bengali';
+    const sourceLanguage = sourceLang || 'Auto-Detect';
+    const translationTone = tone || 'Professional';
+
+    const ai = getAiClient();
+    const prompt = `You are an elite, context-aware multilingual translation system.
+Translate the following text from ${sourceLanguage} to ${targetLanguage}.
+
+Directives:
+1. Tone/Style: Output the translation in a ${translationTone} tone.
+2. Integrity: Preserve the original format, layout, code blocks, technical terms, and paragraph structures.
+3. Content: Do NOT add any extra introductory words, explanations, conversational filler, or markdown commentary. Only return the final, pure translated text.
+
+Input Text to Translate:
+"""
+${text}
+"""`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.5-flash',
+      contents: [{ parts: [{ text: prompt }] }],
+    });
+
+    const translatedText = response.text || '';
+    res.json({ translatedText });
+  } catch (error: any) {
+    console.error('Translation route error:', error);
+    res.status(500).json({ error: error.message || 'Failed to translate text' });
   }
 });
 
@@ -356,16 +402,32 @@ Always speak in natural, polite and respectful `;
   }
 });
 
-// Upgrade HTTP requests on /live path to WebSockets
+// Upgrade HTTP requests on /live path to WebSockets safely
 server.on('upgrade', (request, socket, head) => {
-  const pathname = request.url ? new URL(request.url, `http://${request.headers.host}`).pathname : '';
-  
-  if (pathname === '/live') {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit('connection', ws, request);
-    });
-  } else {
-    socket.destroy();
+  try {
+    let pathname = '';
+    if (request.url) {
+      try {
+        // Correctly parse absolute URLs (http://, https://, ws://, wss://) and relative URLs gracefully
+        pathname = new URL(request.url, 'http://localhost').pathname;
+      } catch (e) {
+        pathname = request.url.split('?')[0];
+      }
+    }
+
+    if (pathname === '/live') {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+    } else {
+      // If it's not the live voice route, let it close or be handled if needed
+      socket.destroy();
+    }
+  } catch (err) {
+    console.error('WebSocket upgrade processing error:', err);
+    try {
+      socket.destroy();
+    } catch (e) {}
   }
 });
 
