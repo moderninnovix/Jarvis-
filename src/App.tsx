@@ -327,6 +327,16 @@ export default function App() {
         setLoginError('ব্রাউজার পপ-আপ উইন্ডো ব্লক করেছে। অনুগ্রহ করে ব্রাউজারের অ্যাড্রেস বার থেকে পপ-আপ অনুমতি দিন অথবা এই কাজের জন্য নিচের বোতামটি ব্যবহার করে অ্যাপটি সরাসরি নতুন ট্যাবে খুলুন।');
       } else if (errCode === 'auth/popup-closed-by-user' || errMsg.includes('popup-closed-by-user')) {
         setLoginError('পপ-আপ বন্ধ হয়ে গেছে অথবা ব্রাউজারের সিকিউরিটি পলিসি আইফ্রেমের (iframe) ভেতর থেকে পপ-আপ খুলতে বাধা দিচ্ছে। অনুগ্রহ করে নিচের "নতুন ট্যাবে খুলুন" বোতামে ক্লিক করে সরাসরি নতুন ট্যাবে ওপেন করে লগইন করুন। এটি এক ক্লিকেই সমাধান হয়ে যাবে!');
+      } else if (errCode === 'auth/unauthorized-domain' || errMsg.includes('unauthorized-domain')) {
+        const currentDomain = window.location.hostname;
+        setLoginError(`লগইন সমস্যা সনাক্ত হয়েছে (auth/unauthorized-domain)। আপনার Firebase Console-এ এই অ্যাপের ডোমেইনটি অনুমোদিত ডোমেইন (Authorized Domains) তালিকায় যোগ করতে হবে।
+
+অনুগ্রহ করে নিচে বর্ণিত পদক্ষেপগুলো অনুসরণ করুন:
+১. আপনার Firebase Console-এ যান।
+২. "Authentication" সেকশনে ক্লিক করুন এবং তারপর "Settings" ট্যাবে যান।
+৩. "Authorized domains" সেকশনে ক্লিক করুন এবং "Add domain" বোতামে চাপ দিন।
+৪. এই ডোমেইনটি যোগ করুন: "${currentDomain}"
+৫. সংরক্ষণ (Save) করে পেজ রিফ্রেশ করুন এবং পুনরায় লগইন করার চেষ্টা করুন।`);
       } else {
         setLoginError(`লগইন করতে ব্যর্থ হয়েছে: ${err?.message || 'অনুগ্রহ করে নতুন ট্যাবে ট্রাই করুন।'}`);
       }
